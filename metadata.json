@@ -1,0 +1,6 @@
+{
+  "name": "CineStream",
+  "description": "Plataforma de streaming de filmes, séries e animes no estilo Netflix com catálogo completo, carrosséis por gêneros e player multicanais.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
