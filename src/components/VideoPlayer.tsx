@@ -168,14 +168,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [resolvedServer, embedUrl]);
 
-  // Timeout preventivo de carregamento para nunca travar a interface
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setIframeLoading(false);
-    }, 3500);
-    return () => window.clearTimeout(timer);
-  }, [resolvedServer, embedUrl]);
-
   // Sincronização e funções internas em segundo plano
   useEffect(() => {
     // Dispara função interna ao carregar player
