@@ -40,6 +40,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const timerRef = useRef<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const probeCleanupRef = useRef<(() => void) | null>(null);
+  const fallbackIndexRef = useRef<number>(0);
 
   const displayTitle = item.title || item.name || 'Filme';
   const releaseYear = (item.release_date || item.first_air_date || '').substring(0, 4) || '2024';
@@ -62,6 +63,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     probeCleanupRef.current = cleanup;
     setIframeLoading(true);
     setResolvedServer(null);
+    fallbackIndexRef.current = 0;
     if (iframeRef.current) {
       iframeRef.current.src = 'about:blank';
     }
@@ -83,6 +85,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           if (cancelled || settled) return;
           settled = true;
           cleanup();
+          fallbackIndexRef.current = PLAYER_SERVER_GROUPS.flat().indexOf(server);
           setResolvedServer(server);
           setIframeLoading(false);
           if (iframeRef.current) {
@@ -115,6 +118,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       cleanup();
     };
   }, [item.id, item.media_type, selectedSeason, selectedEpisode]);
+
+  const handleIframeError = () => {
+    const servers = PLAYER_SERVER_GROUPS.flat();
+    const nextIndex = fallbackIndexRef.current + 1;
+    const nextServer = servers[nextIndex];
+    if (!nextServer || !iframeRef.current) {
+      setIframeLoading(false);
+      return;
+    }
+
+    fallbackIndexRef.current = nextIndex;
+    const nextUrl = nextServer.getUrl(item, selectedSeason, selectedEpisode);
+    setIframeLoading(true);
+    setResolvedServer(nextServer);
+    iframeRef.current.src = 'about:blank';
+    requestAnimationFrame(() => {
+      if (iframeRef.current) iframeRef.current.src = nextUrl;
+    });
+  };
 
   useEffect(() => {
     if (item.media_type !== 'tv' && item.media_type !== 'anime') return;
@@ -284,6 +306,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             className="w-full h-full border-0"
             allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            onError={handleIframeError}
             onLoad={() => setIframeLoading(false)}
           />
         </div>
@@ -425,7 +448,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div className="pt-3 border-t border-zinc-800 flex items-start gap-2 text-[11px] text-zinc-400">
               <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
               <p className="leading-tight">
-                Se o reprodutor for bloqueado pelo navegador ou adblocker, selecione o Canal 2, Canal 3 ou utilize "Abrir em Nova Aba".
+                Se o reprodutor for bloqueado pelo navegador ou adblocker, a fila tentará automaticamente o próximo servidor.
               </p>
             </div>
           </div>

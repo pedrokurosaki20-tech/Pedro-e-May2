@@ -65,14 +65,7 @@ const createServer = (
 
 export const PLAYER_SERVER_GROUPS: EmbedServer[][] = [
   [
-    createServer('rive-stream', 'Rive Stream', 1, 'Prioridade máxima', (item, season = 1, episode = 1) => {
-      const path = getMediaPath(item);
-      if (item.media_type === 'tv' || item.media_type === 'anime') {
-        const params = getPlayerParams(season, episode);
-        return `https://api.rive.stream${path}/${params.season}/${params.episode}`;
-      }
-      return `https://api.rive.stream${path}`;
-    }),
+    createServer('vidlink-pro', 'VidLink Pro', 1, 'Prioridade máxima', getVidLinkUrl),
     createServer('vidsrc-to', 'VidSrc To', 2, 'Prioridade máxima', (item, season = 1, episode = 1) => {
       const path = getMediaPath(item);
       if (item.media_type === 'tv' || item.media_type === 'anime') {
@@ -81,19 +74,7 @@ export const PLAYER_SERVER_GROUPS: EmbedServer[][] = [
       }
       return `https://vidsrc.to${path}`;
     }),
-    createServer('vidlink-pro', 'VidLink Pro', 3, 'Prioridade máxima', getVidLinkUrl),
-  ],
-  [
-    createServer('vidsrc-cc', 'Vidsrc CC', 4, 'Linha de reserva', getVidsrcCcUrl),
-    createServer('embed-su', 'Embed SU', 5, 'Linha de reserva', (item, season = 1, episode = 1) => {
-      const path = getMediaPath(item);
-      if (item.media_type === 'tv' || item.media_type === 'anime') {
-        const params = getPlayerParams(season, episode);
-        return `https://embed.su${path}/${params.season}/${params.episode}`;
-      }
-      return `https://embed.su${path}`;
-    }),
-    createServer('vidsrc-pro', 'Vidsrc Pro', 6, 'Linha de reserva', getVidsrcProUrl),
+    createServer('vidsrc-cc', 'Vidsrc CC', 3, 'Prioridade máxima', getVidsrcCcUrl),
   ],
 ];
 
