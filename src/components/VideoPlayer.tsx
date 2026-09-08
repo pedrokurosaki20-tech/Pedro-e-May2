@@ -57,13 +57,43 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const displayTitle = item.title || item.name || 'Filme';
   const releaseYear = (item.release_date || item.first_air_date || '').substring(0, 4) || '2024';
 
-  // Configura atributos de tela cheia no nó DOM real sem disparar alertas de JSX do React
+  // Troca de canal imediata com atualização direta do src do iframe no DOM (Fallback de Teste)
+  const handleSelectServer = (serverId: string) => {
+    setActiveServerId(serverId);
+    setIframeLoading(true);
+    setChannelReloadCount(c => c + 1);
+
+    const targetServer = EMBED_SERVERS.find(s => s.id === serverId) || EMBED_SERVERS[0];
+    if (targetServer && iframeRef.current) {
+      const nextUrl = targetServer.getUrl(item, selectedSeason, selectedEpisode);
+      iframeRef.current.src = nextUrl;
+    }
+  };
+
+  // Recarga imediata do canal
+  const handleReloadChannel = () => {
+    setIframeLoading(true);
+    setChannelReloadCount(c => c + 1);
+    if (iframeRef.current) {
+      iframeRef.current.src = embedUrl;
+    }
+  };
+
+  // Configura atributos de tela cheia no nó DOM real
   useEffect(() => {
     if (iframeRef.current) {
       iframeRef.current.setAttribute('allowfullscreen', 'true');
       iframeRef.current.setAttribute('webkitallowfullscreen', 'true');
       iframeRef.current.setAttribute('mozallowfullscreen', 'true');
     }
+  }, [activeServerId, embedUrl, channelReloadCount]);
+
+  // Timeout preventivo de carregamento para nunca travar a interface
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setIframeLoading(false);
+    }, 3500);
+    return () => window.clearTimeout(timer);
   }, [activeServerId, embedUrl, channelReloadCount]);
 
   // Sincronização e funções internas em segundo plano
@@ -201,10 +231,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div className="flex items-center gap-3">
               <button
                 id="reload-channel-btn"
-                onClick={() => {
-                  setIframeLoading(true);
-                  setChannelReloadCount(c => c + 1);
-                }}
+                onClick={handleReloadChannel}
                 className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
                 title="Recarregar servidor atual com parâmetros de segurança"
               >
@@ -233,11 +260,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <button
                   key={server.id}
                   id={`channel-btn-${server.serverNumber}`}
-                  onClick={() => {
-                    setActiveServerId(server.id);
-                    setIframeLoading(true);
-                    setChannelReloadCount(c => c + 1);
-                  }}
+                  onClick={() => handleSelectServer(server.id)}
                   className={`flex-none px-3.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border ${
                     isSelected
                       ? 'bg-[#e50914] text-white border-red-500 shadow-md shadow-red-950/50'
@@ -263,10 +286,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   id="season-select"
                   value={selectedSeason}
                   onChange={(e) => {
-                    setSelectedSeason(Number(e.target.value));
+                    const newSeason = Number(e.target.value);
+                    setSelectedSeason(newSeason);
                     setSelectedEpisode(1);
                     setIframeLoading(true);
                     setChannelReloadCount(c => c + 1);
+                    if (iframeRef.current) {
+                      iframeRef.current.src = activeServer.getUrl(item, newSeason, 1);
+                    }
                   }}
                   className="bg-zinc-800 text-white text-xs rounded-md px-2.5 py-1.5 border border-zinc-700 focus:outline-none focus:border-red-500 cursor-pointer"
                 >
@@ -286,9 +313,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   id="episode-select"
                   value={selectedEpisode}
                   onChange={(e) => {
-                    setSelectedEpisode(Number(e.target.value));
+                    const newEpisode = Number(e.target.value);
+                    setSelectedEpisode(newEpisode);
                     setIframeLoading(true);
                     setChannelReloadCount(c => c + 1);
+                    if (iframeRef.current) {
+                      iframeRef.current.src = activeServer.getUrl(item, selectedSeason, newEpisode);
+                    }
                   }}
                   className="bg-zinc-800 text-white text-xs rounded-md px-2.5 py-1.5 border border-zinc-700 focus:outline-none focus:border-red-500 cursor-pointer"
                 >

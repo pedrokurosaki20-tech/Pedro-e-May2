@@ -1,82 +1,85 @@
 import { EmbedServer, MediaItem } from '../types';
 
 /**
- * Constrói a URL do player no servidor VidLink Pro (Canal 1).
- * Formato dinâmico:
- * - Filmes: https://vidlink.pro{id} -> https://vidlink.pro/[ID]
- * - Séries / Animes: https://vidlink.pro{id}/1/1 -> https://vidlink.pro/[ID]/[temporada]/[episódio]
+ * Constrói a URL do player no servidor VidLink (Canal 1).
+ * Rota oficial:
+ * - Filmes: https://vidlink.pro/movie/[ID] (sem /embed, rota direta /movie/)
+ * - Séries / Animes: https://vidlink.pro/tv/[ID]/[temporada]/[episódio] (iniciando em 1/1)
  */
 export function getVidLinkUrl(item: MediaItem, season = 1, episode = 1): string {
   const isSeriesOrAnime = item.media_type === 'tv' || item.media_type === 'anime';
-  const cleanId = String(item.id).startsWith('/') ? item.id : `/${item.id}`;
+  const cleanId = String(item.id).replace(/^\//, '');
   if (isSeriesOrAnime) {
     const s = Math.max(1, season || 1);
     const ep = Math.max(1, episode || 1);
-    return `https://vidlink.pro${cleanId}/${s}/${ep}`;
+    return `https://vidlink.pro/tv/${cleanId}/${s}/${ep}`;
   }
-  return `https://vidlink.pro${cleanId}`;
+  return `https://vidlink.pro/movie/${cleanId}`;
 }
 
 /**
- * Constrói a URL do player no servidor SuperEmbed XYZ (Canal 2).
- * Formato dinâmico:
- * - Filmes: https://superembed.xyz{id} -> https://superembed.xyz/[ID]
- * - Séries / Animes: https://superembed.xyz{id}/1/1 -> https://superembed.xyz/[ID]/[temporada]/[episódio]
+ * Constrói a URL do player no servidor SuperEmbed (multiembed.eu) (Canal 2).
+ * Rota oficial mais estável:
+ * - Filmes: https://multiembed.eu/?video_id=[ID]&tmdb=1
+ * - Séries / Animes: https://multiembed.eu/?video_id=[ID]&tmdb=1&s=[temporada]&e=[episódio] (iniciando em &s=1&e=1)
  */
 export function getSuperEmbedUrl(item: MediaItem, season = 1, episode = 1): string {
   const isSeriesOrAnime = item.media_type === 'tv' || item.media_type === 'anime';
-  const cleanId = String(item.id).startsWith('/') ? item.id : `/${item.id}`;
+  const cleanId = String(item.id).replace(/^\//, '');
   if (isSeriesOrAnime) {
     const s = Math.max(1, season || 1);
     const ep = Math.max(1, episode || 1);
-    return `https://superembed.xyz${cleanId}/${s}/${ep}`;
+    return `https://multiembed.eu/?video_id=${cleanId}&tmdb=1&s=${s}&e=${ep}`;
   }
-  return `https://superembed.xyz${cleanId}`;
+  return `https://multiembed.eu/?video_id=${cleanId}&tmdb=1`;
 }
 
 /**
- * Constrói a URL do player no servidor VidSrc To (Canal 3).
- * Formato dinâmico:
- * - Filmes: https://vidsrc.to{id} -> https://vidsrc.to/[ID]
- * - Séries / Animes: https://vidsrc.to{id}/1/1 -> https://vidsrc.to/[ID]/[temporada]/[episódio]
+ * Constrói a URL do player no servidor Vidsrc VIP (vidsrc.xyz) (Canal 3).
+ * Rota oficial:
+ * - Filmes: https://vidsrc.xyz/embed/movie/[ID]
+ * - Séries / Animes: https://vidsrc.xyz/embed/tv/[ID]/[temporada]/[episódio] (iniciando em 1/1)
  */
-export function getVidSrcUrl(item: MediaItem, season = 1, episode = 1): string {
+export function getVidsrcVipUrl(item: MediaItem, season = 1, episode = 1): string {
   const isSeriesOrAnime = item.media_type === 'tv' || item.media_type === 'anime';
-  const cleanId = String(item.id).startsWith('/') ? item.id : `/${item.id}`;
+  const cleanId = String(item.id).replace(/^\//, '');
   if (isSeriesOrAnime) {
     const s = Math.max(1, season || 1);
     const ep = Math.max(1, episode || 1);
-    return `https://vidsrc.to${cleanId}/${s}/${ep}`;
+    return `https://vidsrc.xyz/embed/tv/${cleanId}/${s}/${ep}`;
   }
-  return `https://vidsrc.to${cleanId}`;
+  return `https://vidsrc.xyz/embed/movie/${cleanId}`;
 }
+
+// Alias de compatibilidade
+export const getVidSrcUrl = getVidsrcVipUrl;
 
 export const EMBED_SERVERS: EmbedServer[] = [
   {
     id: 'vidlink-pro',
-    name: 'Canal 1 (VidLink Pro)',
+    name: 'Canal 1 (VidLink)',
     serverNumber: 1,
-    description: 'Servidor VidLink Pro otimizado e de alta compatibilidade com a Vercel',
+    description: 'Servidor VidLink oficial com rotas diretas /movie/ e /tv/',
     getUrl: (item: MediaItem, season = 1, episode = 1) => {
       return getVidLinkUrl(item, season, episode);
     }
   },
   {
-    id: 'superembed-xyz',
-    name: 'Canal 2 (SuperEmbed XYZ)',
+    id: 'superembed-eu',
+    name: 'Canal 2 (SuperEmbed)',
     serverNumber: 2,
-    description: 'Servidor SuperEmbed flexível com carregamento rápido e sem restrições de frame',
+    description: 'Servidor oficial e estável SuperEmbed (multiembed.eu) com integração TMDB',
     getUrl: (item: MediaItem, season = 1, episode = 1) => {
       return getSuperEmbedUrl(item, season, episode);
     }
   },
   {
-    id: 'vidsrc-to',
-    name: 'Canal 3 (VidSrc To)',
+    id: 'vidsrc-xyz',
+    name: 'Canal 3 (Vidsrc VIP)',
     serverNumber: 3,
-    description: 'Servidor VidSrc estável e sem bloqueios de frame',
+    description: 'Servidor Vidsrc VIP (vidsrc.xyz) de alta definição',
     getUrl: (item: MediaItem, season = 1, episode = 1) => {
-      return getVidSrcUrl(item, season, episode);
+      return getVidsrcVipUrl(item, season, episode);
     }
   },
   {
