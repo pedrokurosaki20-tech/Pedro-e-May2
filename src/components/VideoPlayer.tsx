@@ -85,7 +85,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Configura atributos de tela cheia no nó DOM real
 
   useEffect(() => {
-    if (item.media_type !== 'tv') return;
+    if (item.media_type !== 'tv' && item.media_type !== 'anime') return;
 
     let cancelled = false;
     setSeasonCount(0);
@@ -104,7 +104,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [item.id, item.media_type]);
 
   useEffect(() => {
-    if (item.media_type !== 'tv' || seasonCount === 0) return;
+    if ((item.media_type !== 'tv' && item.media_type !== 'anime') || seasonCount === 0) return;
 
     let cancelled = false;
     setEpisodeNumbers([]);
@@ -221,7 +221,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               {displayTitle}
             </h1>
             <p className="text-[11px] text-zinc-400">
-              {item.media_type === 'tv'
+              {(item.media_type === 'tv' || item.media_type === 'anime')
                 ? `Temporada ${selectedSeason} • Episódio ${selectedEpisode}`
                 : `Filme • ${releaseYear}`}
             </p>
@@ -320,7 +320,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
 
           {/* Seletor de Temporadas e Episódios (Para Séries) */}
-          {item.media_type === 'tv' && (
+          {(item.media_type === 'tv' || item.media_type === 'anime') && (
             <div className="pt-3 border-t border-zinc-800/80 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
                 <Tv className="w-4 h-4 text-zinc-400" />
