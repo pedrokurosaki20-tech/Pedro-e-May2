@@ -35,6 +35,11 @@ interface TMDBRawItem {
 
 export interface TMDBTvDetails {
   number_of_seasons: number;
+  seasons: Array<{
+    id: number;
+    name: string;
+    season_number: number;
+  }>;
 }
 
 export interface TMDBSeasonDetails {
@@ -82,7 +87,15 @@ export const tmdbService = {
     try {
       const res = await fetch(`${TMDB_BASE_URL}/tv/${id}?api_key=${key}&language=pt-BR`);
       if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
-      return await res.json() as TMDBTvDetails;
+      const data = await res.json() as TMDBTvDetails;
+      return {
+        ...data,
+        seasons: (data.seasons || []).filter((season) => (
+          season.id > 0 &&
+          season.season_number > 0 &&
+          season.name.toLowerCase() !== 'specials'
+        )),
+      };
     } catch (err) {
       console.warn('Erro ao consultar detalhes da série no TMDB:', err);
       return null;

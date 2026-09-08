@@ -17,36 +17,26 @@ export function getVidLinkUrl(item: MediaItem, season = 1, episode = 1): string 
   return `https://vidlink.pro/movie/${cleanId}`;
 }
 
-/**
- * Constrói a URL do player no servidor SuperEmbed (multiembed.eu) (Canal 2).
- * Rota oficial mais estável:
- * - Filmes: https://multiembed.eu/?video_id=[ID]&tmdb=1
- * - Séries / Animes: https://multiembed.eu/?video_id=[ID]&tmdb=1&s=[temporada]&e=[episódio] (iniciando em &s=1&e=1)
- */
+/** Constrói a URL do fallback Vidsrc ME (Canal 2). */
 export function getSuperEmbedUrl(item: MediaItem, season = 1, episode = 1): string {
   const isSeriesOrAnime = item.media_type === 'tv' || item.media_type === 'anime';
   const cleanId = String(item.id).replace(/^\//, '');
   if (isSeriesOrAnime) {
     const s = Math.max(1, season || 1);
     const ep = Math.max(1, episode || 1);
-    return `https://multiembed.eu/?video_id=${cleanId}&tmdb=1&s=${s}&e=${ep}`;
+    return `https://vidsrc.me/tv/${cleanId}&season=${s}&episode=${ep}`;
   }
   return `https://multiembed.eu/?video_id=${cleanId}&tmdb=1`;
 }
 
-/**
- * Constrói a URL do player no servidor Vidsrc VIP (vidsrc.xyz) (Canal 3).
- * Rota oficial:
- * - Filmes: https://vidsrc.xyz/embed/movie/[ID]
- * - Séries / Animes: https://vidsrc.xyz/embed/tv/[ID]/[temporada]/[episódio] (iniciando em 1/1)
- */
+/** Constrói a URL do fallback Embed SU (Canal 3). */
 export function getVidsrcVipUrl(item: MediaItem, season = 1, episode = 1): string {
   const isSeriesOrAnime = item.media_type === 'tv' || item.media_type === 'anime';
   const cleanId = String(item.id).replace(/^\//, '');
   if (isSeriesOrAnime) {
     const s = Math.max(1, season || 1);
     const ep = Math.max(1, episode || 1);
-    return `https://vidsrc.xyz/embed/tv/${cleanId}/${s}/${ep}`;
+    return `https://embed.su/tv/${cleanId}/${s}/${ep}`;
   }
   return `https://vidsrc.xyz/embed/movie/${cleanId}`;
 }
@@ -66,18 +56,18 @@ export const EMBED_SERVERS: EmbedServer[] = [
   },
   {
     id: 'superembed-eu',
-    name: 'Canal 2 (SuperEmbed)',
+    name: 'Canal 2 (Vidsrc ME)',
     serverNumber: 2,
-    description: 'Servidor oficial e estável SuperEmbed (multiembed.eu) com integração TMDB',
+    description: 'Servidor alternativo Vidsrc ME para séries e animes',
     getUrl: (item: MediaItem, season = 1, episode = 1) => {
       return getSuperEmbedUrl(item, season, episode);
     }
   },
   {
     id: 'vidsrc-xyz',
-    name: 'Canal 3 (Vidsrc VIP)',
+    name: 'Canal 3 (Embed SU)',
     serverNumber: 3,
-    description: 'Servidor Vidsrc VIP (vidsrc.xyz) de alta definição',
+    description: 'Servidor alternativo Embed SU para séries e animes',
     getUrl: (item: MediaItem, season = 1, episode = 1) => {
       return getVidsrcVipUrl(item, season, episode);
     }

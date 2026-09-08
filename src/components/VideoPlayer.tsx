@@ -39,7 +39,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Séries e Animes: temporada 1 e episódio 1 por padrão
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
   const [selectedEpisode, setSelectedEpisode] = useState<number>(1);
-  const [seasonCount, setSeasonCount] = useState<number>(0);
+  const [availableSeasons, setAvailableSeasons] = useState<number[]>([]);
   const [episodeNumbers, setEpisodeNumbers] = useState<number[]>([]);
 
   // =========================================================================
@@ -88,14 +88,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (item.media_type !== 'tv' && item.media_type !== 'anime') return;
 
     let cancelled = false;
-    setSeasonCount(0);
+    setAvailableSeasons([]);
     setEpisodeNumbers([]);
     setSelectedSeason(1);
     setSelectedEpisode(1);
 
     tmdbService.getTvDetails(item.id).then((details) => {
       if (cancelled) return;
-      setSeasonCount(details?.number_of_seasons || 0);
+      const seasons = (details?.seasons || [])
+        .map((season) => season.season_number)
+        .filter((seasonNumber) => seasonNumber > 0);
+      setAvailableSeasons(seasons);
+      if (seasons.length > 0) {
+        setSelectedSeason(seasons[0]);
+      }
     });
 
     return () => {
@@ -104,7 +110,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [item.id, item.media_type]);
 
   useEffect(() => {
-    if ((item.media_type !== 'tv' && item.media_type !== 'anime') || seasonCount === 0) return;
+    if ((item.media_type !== 'tv' && item.media_type !== 'anime') || availableSeasons.length === 0) return;
 
     let cancelled = false;
     setEpisodeNumbers([]);
@@ -122,7 +128,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [item.id, item.media_type, selectedSeason, seasonCount]);
+  }, [item.id, item.media_type, selectedSeason, availableSeasons.length]);
 
   // Sincronização em segundo plano (escuta e emissão de eventos intacta)
   useEffect(() => {
@@ -342,7 +348,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   }}
                   className="bg-zinc-800 text-white text-xs rounded-md px-2.5 py-1.5 border border-zinc-700 focus:outline-none focus:border-red-500 cursor-pointer"
                 >
-                  {Array.from({ length: seasonCount }, (_, i) => i + 1).map((s) => (
+                  {availableSeasons.map((s) => (
                     <option key={`season-${s}`} value={s}>
                       Temporada {s}
                     </option>
