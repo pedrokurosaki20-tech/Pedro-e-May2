@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { MediaItem, EmbedServer, CineminhaSyncEvent } from '../types';
 import { EMBED_SERVERS } from '../data/embedServers';
+import { tmdbService } from '../services/tmdbService';
 import { 
   emitCineminhaEvent, 
   listenCineminhaEvents,
@@ -38,6 +39,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Séries e Animes: temporada 1 e episódio 1 por padrão
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
   const [selectedEpisode, setSelectedEpisode] = useState<number>(1);
+  const [seasonCount, setSeasonCount] = useState<number>(0);
+  const [episodeNumbers, setEpisodeNumbers] = useState<number[]>([]);
 
   // =========================================================================
   // ESTRUTURA INTERNA CONFIDENCIAL - EVENTOS DO CINEMINHA EM SEGUNDO PLANO
@@ -80,6 +83,48 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   // Configura atributos de tela cheia no nó DOM real
+
+  useEffect(() => {
+    if (item.media_type !== 'tv') return;
+
+    let cancelled = false;
+    setSeasonCount(0);
+    setEpisodeNumbers([]);
+    setSelectedSeason(1);
+    setSelectedEpisode(1);
+
+    tmdbService.getTvDetails(item.id).then((details) => {
+      if (cancelled) return;
+      setSeasonCount(details?.number_of_seasons || 0);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item.id, item.media_type]);
+
+  useEffect(() => {
+    if (item.media_type !== 'tv' || seasonCount === 0) return;
+
+    let cancelled = false;
+    setEpisodeNumbers([]);
+    setSelectedEpisode(1);
+
+    tmdbService.getTvSeasonDetails(item.id, selectedSeason).then((season) => {
+      if (cancelled) return;
+      const numbers = (season?.episodes || []).map((episode) => episode.episode_number);
+      setEpisodeNumbers(numbers);
+      if (numbers.length > 0) {
+        setSelectedEpisode(numbers[0]);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item.id, item.media_type, selectedSeason, seasonCount]);
+
+  // Sincronização em segundo plano (escuta e emissão de eventos intacta)
   useEffect(() => {
     if (iframeRef.current) {
       iframeRef.current.setAttribute('allowfullscreen', 'true');
@@ -297,7 +342,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   }}
                   className="bg-zinc-800 text-white text-xs rounded-md px-2.5 py-1.5 border border-zinc-700 focus:outline-none focus:border-red-500 cursor-pointer"
                 >
-                  {Array.from({ length: item.number_of_seasons || 5 }, (_, i) => i + 1).map((s) => (
+                  {Array.from({ length: seasonCount }, (_, i) => i + 1).map((s) => (
                     <option key={`season-${s}`} value={s}>
                       Temporada {s}
                     </option>
@@ -323,7 +368,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   }}
                   className="bg-zinc-800 text-white text-xs rounded-md px-2.5 py-1.5 border border-zinc-700 focus:outline-none focus:border-red-500 cursor-pointer"
                 >
-                  {Array.from({ length: 16 }, (_, i) => i + 1).map((ep) => (
+                  {episodeNumbers.map((ep) => (
                     <option key={`ep-${ep}`} value={ep}>
                       Episódio {ep}
                     </option>

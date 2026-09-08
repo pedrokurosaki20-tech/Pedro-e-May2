@@ -33,6 +33,16 @@ interface TMDBRawItem {
   number_of_episodes?: number;
 }
 
+export interface TMDBTvDetails {
+  number_of_seasons: number;
+}
+
+export interface TMDBSeasonDetails {
+  episodes: Array<{
+    episode_number: number;
+  }>;
+}
+
 const formatRawItem = (item: TMDBRawItem, defaultType: MediaType): MediaItem => {
   const mediaType: MediaType = item.media_type === 'tv' ? 'tv' : (item.media_type === 'movie' ? 'movie' : defaultType);
   return {
@@ -63,6 +73,36 @@ export const tmdbService = {
   hasApiKey(): boolean {
     const key = getActiveTmdbKey();
     return Boolean(key && key.length > 5);
+  },
+
+  async getTvDetails(id: number): Promise<TMDBTvDetails | null> {
+    const key = getActiveTmdbKey();
+    if (!key) return null;
+
+    try {
+      const res = await fetch(`${TMDB_BASE_URL}/tv/${id}?api_key=${key}&language=pt-BR`);
+      if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
+      return await res.json() as TMDBTvDetails;
+    } catch (err) {
+      console.warn('Erro ao consultar detalhes da série no TMDB:', err);
+      return null;
+    }
+  },
+
+  async getTvSeasonDetails(id: number, seasonNumber: number): Promise<TMDBSeasonDetails | null> {
+    const key = getActiveTmdbKey();
+    if (!key) return null;
+
+    try {
+      const res = await fetch(
+        `${TMDB_BASE_URL}/tv/${id}/season/${seasonNumber}?api_key=${key}&language=pt-BR`
+      );
+      if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
+      return await res.json() as TMDBSeasonDetails;
+    } catch (err) {
+      console.warn('Erro ao consultar episódios da temporada no TMDB:', err);
+      return null;
+    }
   },
 
   async getTrendingMovies(page: number = 1): Promise<MediaItem[]> {
