@@ -10,7 +10,7 @@ import {
   RotateCw
 } from 'lucide-react';
 import { MediaItem, EmbedServer, CineminhaSyncEvent } from '../types';
-import { EMBED_SERVERS, getVidSrcUrl } from '../data/embedServers';
+import { EMBED_SERVERS } from '../data/embedServers';
 import { 
   emitCineminhaEvent, 
   listenCineminhaEvents,
@@ -169,7 +169,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
           )}
 
-          {/* Iframe do Servidor Embed com Sandbox Permissivo e Políticas de Mídia */}
+          {/* Iframe do Servidor Embed sem restrições de sandbox (Permite execução nativa) */}
           <iframe
             ref={iframeRef}
             id="streaming-iframe"
@@ -177,8 +177,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             src={embedUrl}
             title={`Player ${displayTitle}`}
             className="w-full h-full border-0"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-top-navigation allow-popups allow-presentation"
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             onLoad={() => setIframeLoading(false)}
           />
