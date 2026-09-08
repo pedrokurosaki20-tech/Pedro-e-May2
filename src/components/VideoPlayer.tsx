@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Tv, Star, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { MediaItem, EmbedServer, CineminhaSyncEvent } from '../types';
-import { PLAYER_SERVER_GROUPS } from '../data/embedServers';
+import { PLAYER_SERVER_QUEUE } from '../data/embedServers';
 import { tmdbService } from '../services/tmdbService';
 import { 
   emitCineminhaEvent, 
@@ -49,15 +49,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    const probeFrames: HTMLIFrameElement[] = [];
-    const timeoutIds: number[] = [];
-    let groupIndex = 0;
+    let activeProbe: HTMLIFrameElement | null = null;
+    let timeoutId: number | null = null;
     let settled = false;
 
     const cleanup = () => {
-      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
-      probeFrames.forEach((frame) => frame.remove());
-      probeFrames.length = 0;
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      if (activeProbe) activeProbe.remove();
+      activeProbe = null;
     };
     probeCleanupRef.current?.();
     probeCleanupRef.current = cleanup;
@@ -68,51 +67,39 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       iframeRef.current.src = 'about:blank';
     }
 
-    const runGroup = () => {
-      if (cancelled || settled || groupIndex >= PLAYER_SERVER_GROUPS.length) {
-        if (!settled && iframeRef.current) setIframeLoading(false);
+    const runWaterfall = async () => {
+      for (let index = 0; index < PLAYER_SERVER_QUEUE.length; index += 1) {
+        if (cancelled || settled) return;
+        const server = PLAYER_SERVER_QUEUE[index];
+        const url = server.getUrl(item, selectedSeason, selectedEpisode);
+        const loaded = await new Promise<boolean>((resolve) => {
+          const frame = document.createElement('iframe');
+          activeProbe = frame;
+          frame.style.display = 'none';
+          frame.onload = () => resolve(true);
+          frame.onerror = () => resolve(false);
+          document.body.appendChild(frame);
+          timeoutId = window.setTimeout(() => resolve(false), 1500);
+          frame.src = url;
+        });
+        cleanup();
+        if (!loaded || cancelled) continue;
+        settled = true;
+        fallbackIndexRef.current = index;
+        setResolvedServer(server);
+        setIframeLoading(false);
+        if (iframeRef.current) {
+          iframeRef.current.src = 'about:blank';
+          requestAnimationFrame(() => {
+            if (!cancelled && iframeRef.current) iframeRef.current.src = url;
+          });
+        }
         return;
       }
-
-      const servers = PLAYER_SERVER_GROUPS[groupIndex++];
-      let pending = servers.length;
-      const tryServer = (server: EmbedServer) => {
-        if (cancelled || settled) return;
-        const frame = document.createElement('iframe');
-        const url = server.getUrl(item, selectedSeason, selectedEpisode);
-        frame.style.display = 'none';
-        frame.onload = () => {
-          if (cancelled || settled) return;
-          settled = true;
-          cleanup();
-          fallbackIndexRef.current = PLAYER_SERVER_GROUPS.flat().indexOf(server);
-          setResolvedServer(server);
-          setIframeLoading(false);
-          if (iframeRef.current) {
-            iframeRef.current.src = 'about:blank';
-            requestAnimationFrame(() => {
-              if (!cancelled && iframeRef.current) iframeRef.current.src = url;
-            });
-          }
-        };
-        frame.onerror = () => {
-          pending -= 1;
-          if (pending === 0) runGroup();
-        };
-        probeFrames.push(frame);
-        document.body.appendChild(frame);
-        timeoutIds.push(window.setTimeout(() => {
-          if (settled || cancelled) return;
-          frame.remove();
-          pending -= 1;
-          if (pending === 0) runGroup();
-        }, 7000));
-        frame.src = url;
-      };
-      servers.forEach(tryServer);
+      if (!cancelled) setIframeLoading(false);
     };
 
-    runGroup();
+    void runWaterfall();
     return () => {
       cancelled = true;
       cleanup();
@@ -120,7 +107,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [item.id, item.media_type, selectedSeason, selectedEpisode]);
 
   const handleIframeError = () => {
-    const servers = PLAYER_SERVER_GROUPS.flat();
+    const servers = PLAYER_SERVER_QUEUE;
     const nextIndex = fallbackIndexRef.current + 1;
     const nextServer = servers[nextIndex];
     if (!nextServer || !iframeRef.current) {
@@ -136,6 +123,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     requestAnimationFrame(() => {
       if (iframeRef.current) iframeRef.current.src = nextUrl;
     });
+  };
+
+  const handleIframeLoad = () => {
+    if (resolvedServer) setIframeLoading(false);
   };
 
   useEffect(() => {
@@ -301,13 +292,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             ref={iframeRef}
             id="streaming-iframe"
             key={embedUrl || 'player-loading'}
-            src={embedUrl}
+            src={embedUrl || 'about:blank'}
             title={`Player ${displayTitle}`}
             className="w-full h-full border-0"
             allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             onError={handleIframeError}
-            onLoad={() => setIframeLoading(false)}
+            onLoad={handleIframeLoad}
           />
         </div>
 

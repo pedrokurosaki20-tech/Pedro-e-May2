@@ -63,23 +63,42 @@ const createServer = (
   getUrl: EmbedServer['getUrl']
 ): EmbedServer => ({ id, name, serverNumber, description, getUrl });
 
-export const PLAYER_SERVER_GROUPS: EmbedServer[][] = [
-  [
-    createServer('vidlink-pro', 'VidLink Pro', 1, 'Prioridade máxima', getVidLinkUrl),
-    createServer('vidsrc-to', 'VidSrc To', 2, 'Prioridade máxima', (item, season = 1, episode = 1) => {
-      const path = getMediaPath(item);
-      if (item.media_type === 'tv' || item.media_type === 'anime') {
-        const params = getPlayerParams(season, episode);
-        return `https://vidsrc.to${path}/${params.season}/${params.episode}`;
-      }
-      return `https://vidsrc.to${path}`;
-    }),
-    createServer('vidsrc-cc', 'Vidsrc CC', 3, 'Prioridade máxima', getVidsrcCcUrl),
-  ],
+const getGenericProviderUrl = (baseUrl: string, item: MediaItem, season = 1, episode = 1): string => {
+  const path = getMediaPath(item);
+  if (item.media_type === 'tv' || item.media_type === 'anime') {
+    const params = getPlayerParams(season, episode);
+    return `${baseUrl}${path}/${params.season}/${params.episode}`;
+  }
+  return `${baseUrl}${path}`;
+};
+
+export const PLAYER_SERVER_QUEUE: EmbedServer[] = [
+  createServer('vidlink-pro', 'VidLink Pro', 1, 'Prioridade máxima', getVidLinkUrl),
+  createServer('vidsrc-to', 'VidSrc To', 2, 'Prioridade máxima', (item, season = 1, episode = 1) => (
+    getGenericProviderUrl('https://vidsrc.to', item, season, episode)
+  )),
+  createServer('vidsrc-cc', 'Vidsrc CC', 3, 'Prioridade alta', getVidsrcCcUrl),
+  createServer('rive-stream', 'Rive Stream', 4, 'Reserva', (item, season = 1, episode = 1) => (
+    getGenericProviderUrl('https://rive.stream', item, season, episode)
+  )),
+  createServer('embed-su', 'Embed SU', 5, 'Reserva', (item, season = 1, episode = 1) => (
+    getGenericProviderUrl('https://embed.su', item, season, episode)
+  )),
+  createServer('vidsrc-xyz', 'VidSrc XYZ', 6, 'Reserva', (item, season = 1, episode = 1) => (
+    getGenericProviderUrl('https://vidsrc.xyz', item, season, episode)
+  )),
+  createServer('autoembed', 'AutoEmbed', 7, 'Reserva', (item, season = 1, episode = 1) => (
+    getGenericProviderUrl('https://autoembed.cc', item, season, episode)
+  )),
+  createServer('smashystream', 'SmashYStream', 8, 'Reserva', (item, season = 1, episode = 1) => (
+    getGenericProviderUrl('https://smashystream.com', item, season, episode)
+  )),
 ];
 
+export const PLAYER_SERVER_GROUPS: EmbedServer[][] = [PLAYER_SERVER_QUEUE];
+
 export const EMBED_SERVERS: EmbedServer[] = [
-  ...PLAYER_SERVER_GROUPS.flat(),
+  ...PLAYER_SERVER_QUEUE,
   {
     id: 'trailer-hd',
     name: 'Trailer HD Oficial',
