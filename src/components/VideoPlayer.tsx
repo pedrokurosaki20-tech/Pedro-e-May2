@@ -6,13 +6,19 @@ import {
   Star, 
   CheckCircle2, 
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  RotateCw
 } from 'lucide-react';
 import { MediaItem, EmbedServer, CineminhaSyncEvent } from '../types';
-import { EMBED_SERVERS } from '../data/embedServers';
+import { EMBED_SERVERS, getVidSrcUrl } from '../data/embedServers';
 import { 
   emitCineminhaEvent, 
-  listenCineminhaEvents 
+  listenCineminhaEvents,
+  onPlayerPlay,
+  onPlayerPause,
+  onPlayerTimeChange,
+  onPlayerSeek,
+  onPlayerEnded
 } from '../services/cineminhaSync';
 
 interface VideoPlayerProps {
@@ -27,29 +33,44 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Estado do servidor Embed ativo (padrão: Canal 1 - VidSrc To)
   const [activeServerId, setActiveServerId] = useState<string>(EMBED_SERVERS[0].id);
   const [iframeLoading, setIframeLoading] = useState<boolean>(true);
+  const [channelReloadCount, setChannelReloadCount] = useState<number>(0);
 
-  // Séries: temporada e episódio
+  // Séries e Animes: temporada 1 e episódio 1 por padrão
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
   const [selectedEpisode, setSelectedEpisode] = useState<number>(1);
 
   // =========================================================================
-  // ESTRUTURA DE SINCRONIZAÇÃO EM SEGUNDO PLANO (EVENTOS INVISÍVEIS)
+  // ESTRUTURA INTERNA CONFIDENCIAL - EVENTOS DO CINEMINHA EM SEGUNDO PLANO
   // Mantida 100% ativa em background para conexões invisíveis futuras
   // =========================================================================
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playerCurrentTime, setPlayerCurrentTime] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const activeServer: EmbedServer = 
     EMBED_SERVERS.find(s => s.id === activeServerId) || EMBED_SERVERS[0];
 
+  // Constrói a URL do iframe dinamicamente com base no item selecionado
   const embedUrl = activeServer.getUrl(item, selectedSeason, selectedEpisode);
 
   const displayTitle = item.title || item.name || 'Filme';
   const releaseYear = (item.release_date || item.first_air_date || '').substring(0, 4) || '2024';
 
-  // Sincronização em segundo plano (escuta e emissão de eventos intacta)
+  // Configura atributos de tela cheia no nó DOM real sem disparar alertas de JSX do React
   useEffect(() => {
+    if (iframeRef.current) {
+      iframeRef.current.setAttribute('allowfullscreen', 'true');
+      iframeRef.current.setAttribute('webkitallowfullscreen', 'true');
+      iframeRef.current.setAttribute('mozallowfullscreen', 'true');
+    }
+  }, [activeServerId, embedUrl, channelReloadCount]);
+
+  // Sincronização e funções internas em segundo plano
+  useEffect(() => {
+    // Dispara função interna ao carregar player
+    onPlayerTimeChange(item.id, 0);
+
     // Emite que este cliente está pronto com a mídia carregada
     emitCineminhaEvent('READY', {
       currentTime: 0,
@@ -68,16 +89,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       // Reage internamente a comandos remotos sem poluir a interface pública
       if (event.type === 'PLAY') {
         setIsPlaying(true);
+        onPlayerPlay(item.id, event.currentTime || 0);
         if (typeof event.currentTime === 'number') {
           setPlayerCurrentTime(event.currentTime);
         }
         if (!timerRef.current) {
           timerRef.current = window.setInterval(() => {
-            setPlayerCurrentTime(t => t + 1);
+            setPlayerCurrentTime(t => {
+              const nextTime = t + 1;
+              onPlayerTimeChange(item.id, nextTime);
+              return nextTime;
+            });
           }, 1000);
         }
       } else if (event.type === 'PAUSE') {
         setIsPlaying(false);
+        onPlayerPause(item.id, event.currentTime || 0);
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
@@ -88,12 +115,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       } else if (event.type === 'SEEK') {
         if (typeof event.currentTime === 'number') {
           setPlayerCurrentTime(event.currentTime);
+          onPlayerSeek(item.id, event.currentTime);
         }
       }
     });
 
     return () => {
       unsubscribe();
+      onPlayerPause(item.id, playerCurrentTime);
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [item.id, displayTitle, item.media_type, selectedSeason, selectedEpisode]);
@@ -140,14 +169,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
           )}
 
-          {/* Iframe do Servidor Embed com ID dinâmico do TMDB */}
+          {/* Iframe do Servidor Embed com Sandbox Permissivo e Políticas de Mídia */}
           <iframe
+            ref={iframeRef}
             id="streaming-iframe"
-            key={embedUrl}
+            key={`${activeServerId}-${embedUrl}-${channelReloadCount}`}
             src={embedUrl}
             title={`Player ${displayTitle}`}
             className="w-full h-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-top-navigation allow-popups allow-presentation"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             allowFullScreen
             onLoad={() => setIframeLoading(false)}
           />
@@ -168,16 +199,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </span>
             </div>
 
-            <a
-              id="external-player-btn"
-              href={embedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
-            >
-              <span>Abrir em Nova Aba</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <div className="flex items-center gap-3">
+              <button
+                id="reload-channel-btn"
+                onClick={() => {
+                  setIframeLoading(true);
+                  setChannelReloadCount(c => c + 1);
+                }}
+                className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                title="Recarregar servidor atual com parâmetros de segurança"
+              >
+                <RotateCw className="w-3.5 h-3.5 text-red-500" />
+                <span>Recarregar Canal</span>
+              </button>
+
+              <a
+                id="external-player-btn"
+                href={embedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
+              >
+                <span>Abrir em Nova Aba</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
           </div>
 
           {/* Botões de seleção de canal */}
@@ -191,6 +237,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   onClick={() => {
                     setActiveServerId(server.id);
                     setIframeLoading(true);
+                    setChannelReloadCount(c => c + 1);
                   }}
                   className={`flex-none px-3.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border ${
                     isSelected
@@ -220,6 +267,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     setSelectedSeason(Number(e.target.value));
                     setSelectedEpisode(1);
                     setIframeLoading(true);
+                    setChannelReloadCount(c => c + 1);
                   }}
                   className="bg-zinc-800 text-white text-xs rounded-md px-2.5 py-1.5 border border-zinc-700 focus:outline-none focus:border-red-500 cursor-pointer"
                 >
@@ -241,6 +289,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   onChange={(e) => {
                     setSelectedEpisode(Number(e.target.value));
                     setIframeLoading(true);
+                    setChannelReloadCount(c => c + 1);
                   }}
                   className="bg-zinc-800 text-white text-xs rounded-md px-2.5 py-1.5 border border-zinc-700 focus:outline-none focus:border-red-500 cursor-pointer"
                 >

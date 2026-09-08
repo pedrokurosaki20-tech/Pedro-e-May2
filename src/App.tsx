@@ -19,6 +19,9 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { Footer } from './components/Footer';
 import { Home, Film, Tv, Sparkles, User } from 'lucide-react';
 
+// Constante global configurada com a chave v3 do TMDB para requisições
+export const TMDB_API_KEY = "4b50180f870c7d5977cee36f9da052ec";
+
 export default function App() {
   // Aba ativa principal: 'home' | 'movies' | 'tv' | 'animes' | 'profile'
   const [activeTab, setActiveTab] = useState<AppTab>('home');

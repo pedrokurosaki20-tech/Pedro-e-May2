@@ -65,7 +65,7 @@ export const tmdbService = {
     return Boolean(key && key.length > 5);
   },
 
-  async getTrendingMovies(): Promise<MediaItem[]> {
+  async getTrendingMovies(page: number = 1): Promise<MediaItem[]> {
     const key = getActiveTmdbKey();
     if (!key) {
       return FALLBACK_TRENDING_MOVIES;
@@ -73,21 +73,21 @@ export const tmdbService = {
 
     try {
       const res = await fetch(
-        `${TMDB_BASE_URL}/trending/movie/week?api_key=${key}&language=pt-BR`
+        `${TMDB_BASE_URL}/trending/movie/week?api_key=${key}&language=pt-BR&page=${page}`
       );
       if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
       const data: TMDBResponse<TMDBRawItem> = await res.json();
       if (data.results && data.results.length > 0) {
-        return data.results.slice(0, 15).map(item => formatRawItem(item, 'movie'));
+        return data.results.map(item => formatRawItem(item, 'movie'));
       }
-      return FALLBACK_TRENDING_MOVIES;
+      return page === 1 ? FALLBACK_TRENDING_MOVIES : [];
     } catch (err) {
       console.warn('Erro ao consultar TMDB (Trending Movies), usando catálogo local:', err);
-      return FALLBACK_TRENDING_MOVIES;
+      return page === 1 ? FALLBACK_TRENDING_MOVIES : [];
     }
   },
 
-  async getPopularTV(): Promise<MediaItem[]> {
+  async getPopularTV(page: number = 1): Promise<MediaItem[]> {
     const key = getActiveTmdbKey();
     if (!key) {
       return FALLBACK_POPULAR_TV;
@@ -95,21 +95,21 @@ export const tmdbService = {
 
     try {
       const res = await fetch(
-        `${TMDB_BASE_URL}/tv/popular?api_key=${key}&language=pt-BR&page=1`
+        `${TMDB_BASE_URL}/tv/popular?api_key=${key}&language=pt-BR&page=${page}`
       );
       if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
       const data: TMDBResponse<TMDBRawItem> = await res.json();
       if (data.results && data.results.length > 0) {
-        return data.results.slice(0, 15).map(item => formatRawItem(item, 'tv'));
+        return data.results.map(item => formatRawItem(item, 'tv'));
       }
-      return FALLBACK_POPULAR_TV;
+      return page === 1 ? FALLBACK_POPULAR_TV : [];
     } catch (err) {
       console.warn('Erro ao consultar TMDB (Popular TV), usando catálogo local:', err);
-      return FALLBACK_POPULAR_TV;
+      return page === 1 ? FALLBACK_POPULAR_TV : [];
     }
   },
 
-  async getNewReleases(): Promise<MediaItem[]> {
+  async getNewReleases(page: number = 1): Promise<MediaItem[]> {
     const key = getActiveTmdbKey();
     if (!key) {
       return FALLBACK_NEW_RELEASES;
@@ -117,45 +117,50 @@ export const tmdbService = {
 
     try {
       const res = await fetch(
-        `${TMDB_BASE_URL}/movie/now_playing?api_key=${key}&language=pt-BR&page=1`
+        `${TMDB_BASE_URL}/movie/now_playing?api_key=${key}&language=pt-BR&page=${page}`
       );
       if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
       const data: TMDBResponse<TMDBRawItem> = await res.json();
       if (data.results && data.results.length > 0) {
-        return data.results.slice(0, 15).map(item => formatRawItem(item, 'movie'));
+        return data.results.map(item => formatRawItem(item, 'movie'));
       }
-      return FALLBACK_NEW_RELEASES;
+      return page === 1 ? FALLBACK_NEW_RELEASES : [];
     } catch (err) {
       console.warn('Erro ao consultar TMDB (New Releases), usando catálogo local:', err);
-      return FALLBACK_NEW_RELEASES;
+      return page === 1 ? FALLBACK_NEW_RELEASES : [];
     }
   },
 
-  async getAnimes(): Promise<MediaItem[]> {
+  async getAnimes(page: number = 1, genreId?: number | string): Promise<MediaItem[]> {
     const key = getActiveTmdbKey();
     if (!key) {
-      return FALLBACK_ANIMES;
+      return page === 1 ? FALLBACK_ANIMES : [];
     }
 
     try {
+      let genreParam = '16';
+      if (genreId && genreId !== 'all' && !isNaN(Number(genreId))) {
+        genreParam = `16,${genreId}`;
+      }
+
       const res = await fetch(
-        `${TMDB_BASE_URL}/discover/tv?api_key=${key}&with_genres=16&with_original_language=ja&sort_by=popularity.desc&language=pt-BR&page=1`
+        `${TMDB_BASE_URL}/discover/tv?api_key=${key}&with_genres=${genreParam}&with_original_language=ja&sort_by=popularity.desc&language=pt-BR&page=${page}`
       );
       if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
       const data: TMDBResponse<TMDBRawItem> = await res.json();
       if (data.results && data.results.length > 0) {
-        return data.results.slice(0, 20).map(item => formatRawItem(item, 'tv'));
+        return data.results.map(item => formatRawItem(item, 'tv'));
       }
-      return FALLBACK_ANIMES;
+      return page === 1 ? FALLBACK_ANIMES : [];
     } catch (err) {
       console.warn('Erro ao consultar TMDB (Animes), usando catálogo local:', err);
-      return FALLBACK_ANIMES;
+      return page === 1 ? FALLBACK_ANIMES : [];
     }
   },
 
-  async getMoviesByGenre(genreId: number | string): Promise<MediaItem[]> {
+  async getMoviesByGenre(genreId: number | string, page: number = 1): Promise<MediaItem[]> {
     if (genreId === 'all') {
-      return this.getTrendingMovies();
+      return this.getTrendingMovies(page);
     }
     const key = getActiveTmdbKey();
     if (!key) {
@@ -163,28 +168,28 @@ export const tmdbService = {
       const filtered = FALLBACK_TRENDING_MOVIES.concat(FALLBACK_NEW_RELEASES).filter(
         item => item.genre_ids?.includes(numGenreId) || item.genres?.some(g => g.id === numGenreId)
       );
-      return filtered.length > 0 ? filtered : FALLBACK_TRENDING_MOVIES;
+      return page === 1 ? (filtered.length > 0 ? filtered : FALLBACK_TRENDING_MOVIES) : [];
     }
 
     try {
       const res = await fetch(
-        `${TMDB_BASE_URL}/discover/movie?api_key=${key}&with_genres=${genreId}&sort_by=popularity.desc&language=pt-BR&page=1`
+        `${TMDB_BASE_URL}/discover/movie?api_key=${key}&with_genres=${genreId}&sort_by=popularity.desc&language=pt-BR&page=${page}`
       );
       if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
       const data: TMDBResponse<TMDBRawItem> = await res.json();
       if (data.results && data.results.length > 0) {
-        return data.results.slice(0, 20).map(item => formatRawItem(item, 'movie'));
+        return data.results.map(item => formatRawItem(item, 'movie'));
       }
-      return FALLBACK_TRENDING_MOVIES;
+      return page === 1 ? FALLBACK_TRENDING_MOVIES : [];
     } catch (err) {
       console.warn('Erro ao consultar TMDB (Movies by Genre):', err);
-      return FALLBACK_TRENDING_MOVIES;
+      return page === 1 ? FALLBACK_TRENDING_MOVIES : [];
     }
   },
 
-  async getTvByGenre(genreId: number | string): Promise<MediaItem[]> {
+  async getTvByGenre(genreId: number | string, page: number = 1): Promise<MediaItem[]> {
     if (genreId === 'all') {
-      return this.getPopularTV();
+      return this.getPopularTV(page);
     }
     const key = getActiveTmdbKey();
     if (!key) {
@@ -192,22 +197,70 @@ export const tmdbService = {
       const filtered = FALLBACK_POPULAR_TV.filter(
         item => item.genre_ids?.includes(numGenreId) || item.genres?.some(g => g.id === numGenreId)
       );
-      return filtered.length > 0 ? filtered : FALLBACK_POPULAR_TV;
+      return page === 1 ? (filtered.length > 0 ? filtered : FALLBACK_POPULAR_TV) : [];
     }
 
     try {
       const res = await fetch(
-        `${TMDB_BASE_URL}/discover/tv?api_key=${key}&with_genres=${genreId}&sort_by=popularity.desc&language=pt-BR&page=1`
+        `${TMDB_BASE_URL}/discover/tv?api_key=${key}&with_genres=${genreId}&sort_by=popularity.desc&language=pt-BR&page=${page}`
       );
       if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
       const data: TMDBResponse<TMDBRawItem> = await res.json();
       if (data.results && data.results.length > 0) {
-        return data.results.slice(0, 20).map(item => formatRawItem(item, 'tv'));
+        return data.results.map(item => formatRawItem(item, 'tv'));
       }
-      return FALLBACK_POPULAR_TV;
+      return page === 1 ? FALLBACK_POPULAR_TV : [];
     } catch (err) {
       console.warn('Erro ao consultar TMDB (TV by Genre):', err);
-      return FALLBACK_POPULAR_TV;
+      return page === 1 ? FALLBACK_POPULAR_TV : [];
+    }
+  },
+
+  async getDiscoverMovies(page: number = 1, genreId?: number | string): Promise<MediaItem[]> {
+    const key = getActiveTmdbKey();
+    if (!key) {
+      return page === 1 ? FALLBACK_TRENDING_MOVIES : [];
+    }
+
+    try {
+      let url = `${TMDB_BASE_URL}/discover/movie?api_key=${key}&sort_by=popularity.desc&language=pt-BR&page=${page}`;
+      if (genreId && genreId !== 'all') {
+        url += `&with_genres=${genreId}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
+      const data: TMDBResponse<TMDBRawItem> = await res.json();
+      if (data.results && data.results.length > 0) {
+        return data.results.map(item => formatRawItem(item, 'movie'));
+      }
+      return [];
+    } catch (err) {
+      console.warn('Erro ao consultar TMDB (Discover Movies):', err);
+      return [];
+    }
+  },
+
+  async getDiscoverTv(page: number = 1, genreId?: number | string): Promise<MediaItem[]> {
+    const key = getActiveTmdbKey();
+    if (!key) {
+      return page === 1 ? FALLBACK_POPULAR_TV : [];
+    }
+
+    try {
+      let url = `${TMDB_BASE_URL}/discover/tv?api_key=${key}&sort_by=popularity.desc&language=pt-BR&page=${page}`;
+      if (genreId && genreId !== 'all') {
+        url += `&with_genres=${genreId}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`TMDB HTTP error: ${res.status}`);
+      const data: TMDBResponse<TMDBRawItem> = await res.json();
+      if (data.results && data.results.length > 0) {
+        return data.results.map(item => formatRawItem(item, 'tv'));
+      }
+      return [];
+    } catch (err) {
+      console.warn('Erro ao consultar TMDB (Discover TV):', err);
+      return [];
     }
   },
 
