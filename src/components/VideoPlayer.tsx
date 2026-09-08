@@ -62,6 +62,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     probeCleanupRef.current = cleanup;
     setIframeLoading(true);
     setResolvedServer(null);
+    if (iframeRef.current) {
+      iframeRef.current.src = 'about:blank';
+    }
 
     const runGroup = () => {
       if (cancelled || settled || groupIndex >= PLAYER_SERVER_GROUPS.length) {
@@ -83,7 +86,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           setResolvedServer(server);
           setIframeLoading(false);
           if (iframeRef.current) {
-            iframeRef.current.src = '';
+            iframeRef.current.src = 'about:blank';
             requestAnimationFrame(() => {
               if (!cancelled && iframeRef.current) iframeRef.current.src = url;
             });

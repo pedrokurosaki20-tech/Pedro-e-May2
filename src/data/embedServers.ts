@@ -69,9 +69,9 @@ export const PLAYER_SERVER_GROUPS: EmbedServer[][] = [
       const path = getMediaPath(item);
       if (item.media_type === 'tv' || item.media_type === 'anime') {
         const params = getPlayerParams(season, episode);
-        return `https://rive.stream${path}/${params.season}/${params.episode}`;
+        return `https://api.rive.stream${path}/${params.season}/${params.episode}`;
       }
-      return `https://rive.stream${path}`;
+      return `https://api.rive.stream${path}`;
     }),
     createServer('vidsrc-to', 'VidSrc To', 2, 'Prioridade máxima', (item, season = 1, episode = 1) => {
       const path = getMediaPath(item);
