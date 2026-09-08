@@ -55,47 +55,54 @@ export function getSuperEmbedUrl(item: MediaItem, season = 1, episode = 1): stri
 // Alias de compatibilidade
 export const getVidSrcUrl = getVidsrcProUrl;
 
+const createServer = (
+  id: string,
+  name: string,
+  serverNumber: number,
+  description: string,
+  getUrl: EmbedServer['getUrl']
+): EmbedServer => ({ id, name, serverNumber, description, getUrl });
+
+export const PLAYER_SERVER_GROUPS: EmbedServer[][] = [
+  [
+    createServer('rive-stream', 'Rive Stream', 1, 'Prioridade máxima', (item, season = 1, episode = 1) => {
+      const path = getMediaPath(item);
+      if (item.media_type === 'tv' || item.media_type === 'anime') {
+        const params = getPlayerParams(season, episode);
+        return `https://rive.stream${path}/${params.season}/${params.episode}`;
+      }
+      return `https://rive.stream${path}`;
+    }),
+    createServer('vidsrc-to', 'VidSrc To', 2, 'Prioridade máxima', (item, season = 1, episode = 1) => {
+      const path = getMediaPath(item);
+      if (item.media_type === 'tv' || item.media_type === 'anime') {
+        const params = getPlayerParams(season, episode);
+        return `https://vidsrc.to${path}/${params.season}/${params.episode}`;
+      }
+      return `https://vidsrc.to${path}`;
+    }),
+    createServer('vidlink-pro', 'VidLink Pro', 3, 'Prioridade máxima', getVidLinkUrl),
+  ],
+  [
+    createServer('vidsrc-cc', 'Vidsrc CC', 4, 'Linha de reserva', getVidsrcCcUrl),
+    createServer('embed-su', 'Embed SU', 5, 'Linha de reserva', (item, season = 1, episode = 1) => {
+      const path = getMediaPath(item);
+      if (item.media_type === 'tv' || item.media_type === 'anime') {
+        const params = getPlayerParams(season, episode);
+        return `https://embed.su${path}/${params.season}/${params.episode}`;
+      }
+      return `https://embed.su${path}`;
+    }),
+    createServer('vidsrc-pro', 'Vidsrc Pro', 6, 'Linha de reserva', getVidsrcProUrl),
+  ],
+];
+
 export const EMBED_SERVERS: EmbedServer[] = [
-  {
-    id: 'vidlink-pro',
-    name: 'Canal 1 (VidLink)',
-    serverNumber: 1,
-    description: 'Servidor VidLink oficial com rotas diretas /movie/ e /tv/',
-    getUrl: (item: MediaItem, season = 1, episode = 1) => {
-      return getVidLinkUrl(item, season, episode);
-    }
-  },
-  {
-    id: 'vidsrc-cc',
-    name: 'Canal 2 (Vidsrc CC)',
-    serverNumber: 2,
-    description: 'Agregador Vidsrc CC para séries, animes e filmes',
-    getUrl: (item: MediaItem, season = 1, episode = 1) => {
-      return getVidsrcCcUrl(item, season, episode);
-    }
-  },
-  {
-    id: 'vidsrc-pro',
-    name: 'Canal 3 (Vidsrc Pro)',
-    serverNumber: 3,
-    description: 'Servidor alternativo Vidsrc Pro',
-    getUrl: (item: MediaItem, season = 1, episode = 1) => {
-      return getVidsrcProUrl(item, season, episode);
-    }
-  },
-  {
-    id: 'superembed-eu',
-    name: 'Canal 4 (SuperEmbed)',
-    serverNumber: 4,
-    description: 'SuperEmbed Real com integração TMDB',
-    getUrl: (item: MediaItem, season = 1, episode = 1) => {
-      return getSuperEmbedUrl(item, season, episode);
-    }
-  },
+  ...PLAYER_SERVER_GROUPS.flat(),
   {
     id: 'trailer-hd',
-    name: 'Canal 5 (Trailer HD Oficial)',
-    serverNumber: 5,
+    name: 'Trailer HD Oficial',
+    serverNumber: 7,
     description: 'Trailer oficial em alta definição direto do YouTube',
     getUrl: (item: MediaItem) => {
       const trailerKey = item.trailer_youtube_id || '73_1biulkYk';

@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ArrowLeft, 
-  Radio, 
-  Tv, 
-  Star, 
-  CheckCircle2, 
-  ExternalLink,
-  ShieldAlert,
-  RotateCw
-} from 'lucide-react';
+import { ArrowLeft, Tv, Star, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { MediaItem, EmbedServer, CineminhaSyncEvent } from '../types';
-import { EMBED_SERVERS } from '../data/embedServers';
+import { PLAYER_SERVER_GROUPS } from '../data/embedServers';
 import { tmdbService } from '../services/tmdbService';
 import { 
   emitCineminhaEvent, 
@@ -31,10 +22,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   item,
   onBack,
 }) => {
-  // Estado do servidor Embed ativo (padrão: Canal 1 - VidSrc To)
-  const [activeServerId, setActiveServerId] = useState<string>(EMBED_SERVERS[0].id);
   const [iframeLoading, setIframeLoading] = useState<boolean>(true);
-  const [channelReloadCount, setChannelReloadCount] = useState<number>(0);
+  const [resolvedServer, setResolvedServer] = useState<EmbedServer | null>(null);
 
   // Séries e Animes: temporada 1 e episódio 1 por padrão
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
@@ -50,39 +39,79 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [playerCurrentTime, setPlayerCurrentTime] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  const activeServer: EmbedServer = 
-    EMBED_SERVERS.find(s => s.id === activeServerId) || EMBED_SERVERS[0];
-
-  // Constrói a URL do iframe dinamicamente com base no item selecionado
-  const embedUrl = activeServer.getUrl(item, selectedSeason, selectedEpisode);
+  const probeCleanupRef = useRef<(() => void) | null>(null);
 
   const displayTitle = item.title || item.name || 'Filme';
   const releaseYear = (item.release_date || item.first_air_date || '').substring(0, 4) || '2024';
 
-  // Troca de canal imediata com atualização direta do src do iframe no DOM (Fallback de Teste)
-  const handleSelectServer = (serverId: string) => {
-    setActiveServerId(serverId);
+  const embedUrl = resolvedServer?.getUrl(item, selectedSeason, selectedEpisode) || '';
+
+  useEffect(() => {
+    let cancelled = false;
+    const probeFrames: HTMLIFrameElement[] = [];
+    const timeoutIds: number[] = [];
+    let groupIndex = 0;
+    let settled = false;
+
+    const cleanup = () => {
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      probeFrames.forEach((frame) => frame.remove());
+      probeFrames.length = 0;
+    };
+    probeCleanupRef.current?.();
+    probeCleanupRef.current = cleanup;
     setIframeLoading(true);
-    setChannelReloadCount(c => c + 1);
+    setResolvedServer(null);
 
-    const targetServer = EMBED_SERVERS.find(s => s.id === serverId) || EMBED_SERVERS[0];
-    if (targetServer && iframeRef.current) {
-      const nextUrl = targetServer.getUrl(item, selectedSeason, selectedEpisode);
-      iframeRef.current.src = nextUrl;
-    }
-  };
+    const runGroup = () => {
+      if (cancelled || settled || groupIndex >= PLAYER_SERVER_GROUPS.length) {
+        if (!settled && iframeRef.current) setIframeLoading(false);
+        return;
+      }
 
-  // Recarga imediata do canal
-  const handleReloadChannel = () => {
-    setIframeLoading(true);
-    setChannelReloadCount(c => c + 1);
-    if (iframeRef.current) {
-      iframeRef.current.src = embedUrl;
-    }
-  };
+      const servers = PLAYER_SERVER_GROUPS[groupIndex++];
+      let pending = servers.length;
+      const tryServer = (server: EmbedServer) => {
+        if (cancelled || settled) return;
+        const frame = document.createElement('iframe');
+        const url = server.getUrl(item, selectedSeason, selectedEpisode);
+        frame.style.display = 'none';
+        frame.onload = () => {
+          if (cancelled || settled) return;
+          settled = true;
+          cleanup();
+          setResolvedServer(server);
+          setIframeLoading(false);
+          if (iframeRef.current) {
+            iframeRef.current.src = '';
+            requestAnimationFrame(() => {
+              if (!cancelled && iframeRef.current) iframeRef.current.src = url;
+            });
+          }
+        };
+        frame.onerror = () => {
+          pending -= 1;
+          if (pending === 0) runGroup();
+        };
+        probeFrames.push(frame);
+        document.body.appendChild(frame);
+        timeoutIds.push(window.setTimeout(() => {
+          if (settled || cancelled) return;
+          frame.remove();
+          pending -= 1;
+          if (pending === 0) runGroup();
+        }, 7000));
+        frame.src = url;
+      };
+      servers.forEach(tryServer);
+    };
 
-  // Configura atributos de tela cheia no nó DOM real
+    runGroup();
+    return () => {
+      cancelled = true;
+      cleanup();
+    };
+  }, [item.id, item.media_type, selectedSeason, selectedEpisode]);
 
   useEffect(() => {
     if (item.media_type !== 'tv' && item.media_type !== 'anime') return;
@@ -137,7 +166,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       iframeRef.current.setAttribute('webkitallowfullscreen', 'true');
       iframeRef.current.setAttribute('mozallowfullscreen', 'true');
     }
-  }, [activeServerId, embedUrl, channelReloadCount]);
+  }, [resolvedServer, embedUrl]);
 
   // Timeout preventivo de carregamento para nunca travar a interface
   useEffect(() => {
@@ -145,7 +174,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setIframeLoading(false);
     }, 3500);
     return () => window.clearTimeout(timer);
-  }, [activeServerId, embedUrl, channelReloadCount]);
+  }, [resolvedServer, embedUrl]);
 
   // Sincronização e funções internas em segundo plano
   useEffect(() => {
@@ -244,7 +273,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div className="absolute inset-0 z-10 bg-zinc-950/90 flex flex-col items-center justify-center pointer-events-none">
               <div className="w-12 h-12 border-4 border-zinc-700 border-t-[#e50914] rounded-full animate-spin mb-3" />
               <p className="text-sm font-semibold text-zinc-200">
-                Conectando ao {activeServer.name}...
+                Buscando o melhor player disponível...
               </p>
               <span className="text-xs text-zinc-500 mt-1">Carregando stream estável</span>
             </div>
@@ -254,7 +283,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <iframe
             ref={iframeRef}
             id="streaming-iframe"
-            key={`${activeServerId}-${embedUrl}-${channelReloadCount}`}
+            key={embedUrl || 'player-loading'}
             src={embedUrl}
             title={`Player ${displayTitle}`}
             className="w-full h-full border-0"
@@ -264,67 +293,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           />
         </div>
 
-        {/* =========================================================================
-            BARRA DE OPÇÕES DE CANAIS / SERVIDORES ALTERNATIVOS
-           ========================================================================= */}
-        <div id="channels-bar" className="mt-4 p-3.5 sm:p-4 bg-zinc-900/90 rounded-xl border border-white/5 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Radio className="w-4 h-4 text-[#e50914] animate-pulse" />
-              <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
-                Servidores de Exibição (Embed):
-              </span>
-              <span className="text-[11px] text-zinc-400 hidden md:inline">
-                Se um canal travar, selecione outro abaixo
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                id="reload-channel-btn"
-                onClick={handleReloadChannel}
-                className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                title="Recarregar servidor atual com parâmetros de segurança"
-              >
-                <RotateCw className="w-3.5 h-3.5 text-red-500" />
-                <span>Recarregar Canal</span>
-              </button>
-
-              <a
-                id="external-player-btn"
-                href={embedUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors"
-              >
-                <span>Abrir em Nova Aba</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-
-          {/* Botões de seleção de canal */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            {EMBED_SERVERS.map((server) => {
-              const isSelected = server.id === activeServerId;
-              return (
-                <button
-                  key={server.id}
-                  id={`channel-btn-${server.serverNumber}`}
-                  onClick={() => handleSelectServer(server.id)}
-                  className={`flex-none px-3.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border ${
-                    isSelected
-                      ? 'bg-[#e50914] text-white border-red-500 shadow-md shadow-red-950/50'
-                      : 'bg-zinc-800 text-zinc-300 border-white/5 hover:bg-zinc-700 hover:text-white'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-zinc-500'}`} />
-                  <span>{server.name}</span>
-                </button>
-              );
-            })}
-          </div>
-
+        <div id="player-controls" className="mt-4 p-3.5 sm:p-4 bg-zinc-900/90 rounded-xl border border-white/5 space-y-3">
           {/* Seletor de Temporadas e Episódios (Para Séries) */}
           {(item.media_type === 'tv' || item.media_type === 'anime') && (
             <div className="pt-3 border-t border-zinc-800/80 flex flex-wrap items-center gap-3">
@@ -338,13 +307,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   value={selectedSeason}
                   onChange={(e) => {
                     const newSeason = Number(e.target.value);
+                    if (iframeRef.current) iframeRef.current.src = '';
                     setSelectedSeason(newSeason);
                     setSelectedEpisode(1);
                     setIframeLoading(true);
-                    setChannelReloadCount(c => c + 1);
-                    if (iframeRef.current) {
-                      iframeRef.current.src = activeServer.getUrl(item, newSeason, 1);
-                    }
                   }}
                   className="bg-zinc-800 text-white text-xs rounded-md px-2.5 py-1.5 border border-zinc-700 focus:outline-none focus:border-red-500 cursor-pointer"
                 >
@@ -365,12 +331,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   value={selectedEpisode}
                   onChange={(e) => {
                     const newEpisode = Number(e.target.value);
+                    if (iframeRef.current) iframeRef.current.src = '';
                     setSelectedEpisode(newEpisode);
                     setIframeLoading(true);
-                    setChannelReloadCount(c => c + 1);
-                    if (iframeRef.current) {
-                      iframeRef.current.src = activeServer.getUrl(item, selectedSeason, newEpisode);
-                    }
                   }}
                   className="bg-zinc-800 text-white text-xs rounded-md px-2.5 py-1.5 border border-zinc-700 focus:outline-none focus:border-red-500 cursor-pointer"
                 >
@@ -448,7 +411,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div className="space-y-2.5 text-xs text-zinc-400">
               <p className="flex justify-between">
                 <span>Servidor Atual:</span>
-                <span className="text-white font-medium">{activeServer.name}</span>
+                <span className="text-white font-medium">{resolvedServer?.name || 'Selecionando player'}</span>
               </p>
               <p className="flex justify-between">
                 <span>Resolução:</span>
