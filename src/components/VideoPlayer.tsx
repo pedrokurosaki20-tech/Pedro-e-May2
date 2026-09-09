@@ -242,7 +242,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             className="w-full h-full border-0"
             allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
-            referrerPolicy="origin"
+            scrolling="no"
+            referrerPolicy="no-referrer"
             onError={handleIframeError}
             onLoad={handleIframeLoad}
           />

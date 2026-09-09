@@ -35,15 +35,15 @@ const getTvEpisodeUrl = (baseUrl: string, item: MediaItem, season = 1, episode =
 };
 
 export const MOVIE_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidlink-movie', 'Player 1', 1, 'VidLink Pro', (item) => 'https://vidlink.pro/embed/movie/' + item.id),
-  createServer('vidsrc-me-movie', 'Player 2', 2, 'VidSrc ME', (item) => `https://vidsrc.me/embed/movie?tmdb=${item.id}`),
-  createServer('vidsrc-cc-movie', 'Player 3', 3, 'VidSrc CC', (item) => `https://vidsrc.cc/v2/embed/movie/${item.id}`),
+  createServer('embed-su-movie', 'Player 1', 1, 'Embed.su', (item) => `https://embed.su/embed/movie/${item.id}`),
+  createServer('vidsrc-me-movie', 'Player 2', 2, 'VidSrc.me', (item) => `https://vidsrc.me/embed/movie/${item.id}`),
+  createServer('vidsrc-pro-movie', 'Player 3', 3, 'VidSrc Pro', (item) => `https://vidsrc.pro/embed/movie/${item.id}`),
 ];
 
 export const TV_ANIME_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidlink-tv', 'Player 1', 1, 'VidLink Pro', (item, season = 1, episode = 1) => `https://vidlink.pro/embed/tv/${item.id}/${season}/${episode}`),
-  createServer('vidsrc-me-tv', 'Player 2', 2, 'VidSrc ME', (item, season = 1, episode = 1) => `https://vidsrc.me/embed/tv?tmdb=${item.id}&season=${season}&episode=${episode}`),
-  createServer('vidsrc-cc-tv', 'Player 3', 3, 'VidSrc CC', (item, season = 1, episode = 1) => `https://vidsrc.cc/v2/embed/tv/${item.id}/${season}/${episode}`),
+  createServer('embed-su-tv', 'Player 1', 1, 'Embed.su', (item, season = 1, episode = 1) => `https://embed.su/embed/tv/${item.id}/${season}/${episode}`),
+  createServer('vidsrc-me-tv', 'Player 2', 2, 'VidSrc.me', (item, season = 1, episode = 1) => `https://vidsrc.me/embed/tv/${item.id}/${season}/${episode}`),
+  createServer('vidsrc-pro-tv', 'Player 3', 3, 'VidSrc Pro', (item, season = 1, episode = 1) => `https://vidsrc.pro/embed/tv/${item.id}/${season}/${episode}`),
 ];
 
 export const getPlayerQueue = (item: MediaItem): EmbedServer[] => {
