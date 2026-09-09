@@ -133,6 +133,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const handleChangeChannel = () => {
+    const nextIndex = selectedPlayerIndex + 1;
+    const nextServer = playerQueue[nextIndex];
+    if (!nextServer) {
+      console.info('[CineStream] Nenhum canal adicional disponível para esta mídia.');
+      return;
+    }
+
+    const nextUrl = nextServer.getUrl(item, selectedSeason, selectedEpisode);
+    console.info(`[CineStream] Usuário pulou para o Canal ${nextIndex + 1}`);
+    setSelectedPlayerIndex(nextIndex);
+    setPlayerUrl(nextUrl);
+    setIframeLoading(true);
+    if (iframeRef.current) {
+      iframeRef.current.src = 'about:blank';
+      requestAnimationFrame(() => {
+        if (iframeRef.current) iframeRef.current.src = nextUrl;
+      });
+    }
+  };
+
   useEffect(() => {
     if (item.media_type !== 'tv' && item.media_type !== 'anime') return;
 
@@ -307,6 +328,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             onLoad={handleIframeLoad}
           />
         </div>
+
+        <button
+          type="button"
+          onClick={handleChangeChannel}
+          className="mt-3 text-xs font-semibold text-zinc-400 hover:text-white transition-colors underline underline-offset-4 cursor-pointer"
+        >
+          🔴 Não carregou? Trocar de Canal
+        </button>
 
         <div id="player-controls" className="mt-4 p-3.5 sm:p-4 bg-zinc-900/90 rounded-xl border border-white/5 space-y-3">
           {/* Seletor de Temporadas e Episódios (Para Séries) */}
