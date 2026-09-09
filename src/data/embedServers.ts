@@ -72,30 +72,44 @@ const getGenericProviderUrl = (baseUrl: string, item: MediaItem, season = 1, epi
   return `${baseUrl}${path}`;
 };
 
-export const PLAYER_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidlink-pro', 'VidLink Pro', 1, 'Prioridade máxima', getVidLinkUrl),
-  createServer('vidsrc-to', 'VidSrc To', 2, 'Prioridade máxima', (item, season = 1, episode = 1) => (
-    getGenericProviderUrl('https://vidsrc.to', item, season, episode)
-  )),
-  createServer('vidsrc-cc', 'Vidsrc CC', 3, 'Prioridade alta', getVidsrcCcUrl),
-  createServer('rive-stream', 'Rive Stream', 4, 'Reserva', (item, season = 1, episode = 1) => (
-    getGenericProviderUrl('https://rive.stream', item, season, episode)
-  )),
-  createServer('embed-su', 'Embed SU', 5, 'Reserva', (item, season = 1, episode = 1) => (
-    getGenericProviderUrl('https://embed.su', item, season, episode)
-  )),
-  createServer('vidsrc-xyz', 'VidSrc XYZ', 6, 'Reserva', (item, season = 1, episode = 1) => (
-    getGenericProviderUrl('https://vidsrc.xyz', item, season, episode)
-  )),
-  createServer('autoembed', 'AutoEmbed', 7, 'Reserva', (item, season = 1, episode = 1) => (
-    getGenericProviderUrl('https://autoembed.cc', item, season, episode)
-  )),
-  createServer('smashystream', 'SmashYStream', 8, 'Reserva', (item, season = 1, episode = 1) => (
-    getGenericProviderUrl('https://smashystream.com', item, season, episode)
-  )),
+const getAnimeSmashyStreamUrl = (item: MediaItem, season = 1, episode = 1): string => {
+  const cleanId = String(item.id).replace(/^\//, '');
+  const params = getPlayerParams(season, episode);
+  return `https://smashystream.com/${cleanId}&season=${params.season}&episode=${params.episode}`;
+};
+
+export const MOVIE_SERVER_QUEUE: EmbedServer[] = [
+  createServer('rive-stream-movie', 'Rive Stream', 1, 'Especialista em filmes', (item) => getGenericProviderUrl('https://rive.stream', item)),
+  createServer('vidsrc-to-movie', 'VidSrc To', 2, 'Maior acervo de filmes', (item) => getGenericProviderUrl('https://vidsrc.to', item)),
+  createServer('vidlink-movie', 'VidLink Pro', 3, 'Velocidade em filmes', (item) => getGenericProviderUrl('https://vidlink.pro', item)),
+  createServer('2embed-movie', '2Embed', 4, 'Fallback de filmes', (item) => getGenericProviderUrl('https://2embed.cc', item)),
 ];
 
-export const PLAYER_SERVER_GROUPS: EmbedServer[][] = [PLAYER_SERVER_QUEUE];
+export const TV_SERVER_QUEUE: EmbedServer[] = [
+  createServer('vidlink-tv', 'VidLink Pro', 1, 'Especialista em séries', getVidLinkUrl),
+  createServer('vidsrc-to-tv', 'VidSrc To', 2, 'Maior acervo de séries', (item, season = 1, episode = 1) => getGenericProviderUrl('https://vidsrc.to', item, season, episode)),
+  createServer('vidsrc-cc-tv', 'Vidsrc CC', 3, 'Fallback de séries', getVidsrcCcUrl),
+  createServer('autoembed-tv', 'AutoEmbed', 4, 'Fallback clássico de séries', (item, season = 1, episode = 1) => getGenericProviderUrl('https://autoembed.cc', item, season, episode)),
+];
+
+export const ANIME_SERVER_QUEUE: EmbedServer[] = [
+  createServer('anivexa-vidsrc', 'Anivexa / AniMovie', 1, 'Especialista em animes', (item, season = 1, episode = 1) => getGenericProviderUrl('https://vidsrc.to', item, season, episode)),
+  createServer('vidlink-anime', 'VidLink Anime', 2, 'Bypass para animes', getVidLinkUrl),
+  createServer('vidsrc-xyz-anime', 'VidSrc XYZ', 3, 'Acervo de animação', (item, season = 1, episode = 1) => getGenericProviderUrl('https://vidsrc.xyz', item, season, episode)),
+  createServer('smashystream-anime', 'SmashYStream', 4, 'Fallback de anime', getAnimeSmashyStreamUrl),
+];
+
+export const getPlayerQueue = (item: MediaItem): EmbedServer[] => {
+  if (item.media_type === 'movie') return MOVIE_SERVER_QUEUE;
+  if (item.media_type === 'anime') return ANIME_SERVER_QUEUE;
+  return TV_SERVER_QUEUE;
+};
+
+export const PLAYER_SERVER_QUEUE: EmbedServer[] = [
+  ...MOVIE_SERVER_QUEUE,
+  ...TV_SERVER_QUEUE,
+  ...ANIME_SERVER_QUEUE,
+];
 
 export const EMBED_SERVERS: EmbedServer[] = [
   ...PLAYER_SERVER_QUEUE,

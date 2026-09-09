@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Tv, Star, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { MediaItem, EmbedServer, CineminhaSyncEvent } from '../types';
-import { PLAYER_SERVER_QUEUE } from '../data/embedServers';
+import { getPlayerQueue } from '../data/embedServers';
 import { tmdbService } from '../services/tmdbService';
 import { 
   emitCineminhaEvent, 
@@ -46,6 +46,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const releaseYear = (item.release_date || item.first_air_date || '').substring(0, 4) || '2024';
 
   const embedUrl = resolvedServer?.getUrl(item, selectedSeason, selectedEpisode) || '';
+  const playerQueue = getPlayerQueue(item);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,9 +69,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
 
     const runWaterfall = async () => {
-      for (let index = 0; index < PLAYER_SERVER_QUEUE.length; index += 1) {
+      for (let index = 0; index < playerQueue.length; index += 1) {
         if (cancelled || settled) return;
-        const server = PLAYER_SERVER_QUEUE[index];
+        const server = playerQueue[index];
         const url = server.getUrl(item, selectedSeason, selectedEpisode);
         const loaded = await new Promise<boolean>((resolve) => {
           const frame = document.createElement('iframe');
@@ -104,10 +105,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       cancelled = true;
       cleanup();
     };
-  }, [item.id, item.media_type, selectedSeason, selectedEpisode]);
+  }, [item.id, item.media_type, selectedSeason, selectedEpisode, playerQueue]);
 
   const handleIframeError = () => {
-    const servers = PLAYER_SERVER_QUEUE;
+    const servers = playerQueue;
     const nextIndex = fallbackIndexRef.current + 1;
     const nextServer = servers[nextIndex];
     if (!nextServer || !iframeRef.current) {
