@@ -34,26 +34,42 @@ const getTvEpisodeUrl = (baseUrl: string, item: MediaItem, season = 1, episode =
   return `${baseUrl}/tv/${cleanId}/${params.season}/${params.episode}`;
 };
 
-export const MOVIE_SERVER_QUEUE: EmbedServer[] = [
-  createServer('embed-su-movie', 'Player 1', 1, 'Embed.su', (item) => `https://embed.su/embed/movie/${item.id}`),
-  createServer('vidsrc-me-movie', 'Player 2', 2, 'VidSrc.me', (item) => `https://vidsrc.me/embed/movie/${item.id}`),
-  createServer('vidsrc-pro-movie', 'Player 3', 3, 'VidSrc Pro', (item) => `https://vidsrc.pro/embed/movie/${item.id}`),
-];
-
-export const TV_ANIME_SERVER_QUEUE: EmbedServer[] = [
-  createServer('embed-su-tv', 'Player 1', 1, 'Embed.su', (item, season = 1, episode = 1) => `https://embed.su/embed/tv/${item.id}/${season}/${episode}`),
-  createServer('vidsrc-me-tv', 'Player 2', 2, 'VidSrc.me', (item, season = 1, episode = 1) => `https://vidsrc.me/embed/tv/${item.id}/${season}/${episode}`),
-  createServer('vidsrc-pro-tv', 'Player 3', 3, 'VidSrc Pro', (item, season = 1, episode = 1) => `https://vidsrc.pro/embed/tv/${item.id}/${season}/${episode}`),
-];
-
-export const getPlayerQueue = (item: MediaItem): EmbedServer[] => {
-  if (item.media_type === 'movie') return MOVIE_SERVER_QUEUE;
-  return TV_ANIME_SERVER_QUEUE;
+export const getMultiEmbedFallbackUrl = (item: MediaItem, season = 1, episode = 1): string => {
+  const cleanId = String(item.id).replace(/^\//, '');
+  if (item.media_type === 'movie') {
+    return `https://multiembed.cm/?video_id=${cleanId}`;
+  }
+  const params = getPlayerParams(season, episode);
+  return `https://multiembed.cm/?video_id=${cleanId}&s=${params.season}&e=${params.episode}`;
 };
+
+export const MOVIE_SERVER_QUEUE: EmbedServer[] = [
+  createServer('vidsrc-movie', 'VidSrc Novo', 1, 'Catálogo de filmes', (item) => `https://vidsrc.to/embed/movie/${item.id}`),
+  createServer('vidlink-movie', 'VidLink', 2, 'Player alternativo', (item) => `https://vidlink.pro/embed/movie/${item.id}`),
+  createServer('multiembed-movie', 'MultiEmbed', 3, 'Fallback de filmes', (item) => getMultiEmbedFallbackUrl(item)),
+  createServer('smashystream-movie', 'SmashyStream', 4, 'Fallback de filmes', (item) => `https://embed.smashystream.com/playere.php?tmdb=${item.id}`),
+];
+
+export const TV_SERVER_QUEUE: EmbedServer[] = [
+  createServer('vidsrc-tv', 'VidSrc TV', 5, 'Catálogo de séries', (item, season = 1, episode = 1) => `https://vidsrc.to/embed/tv/${item.id}/${season}/${episode}`),
+  createServer('vidlink-tv', 'VidLink TV', 6, 'Player alternativo de séries', (item, season = 1, episode = 1) => `https://vidlink.pro/embed/tv/${item.id}/${season}/${episode}`),
+  createServer('mgmoves-tv', 'MG Moves', 7, 'Fallback dublado', (item, season = 1, episode = 1) => `https://mgmoves.net/embed/tv/${item.id}/${season}/${episode}`),
+  createServer('2embed-tv', '2Embed', 8, 'Fallback de séries', (item, season = 1, episode = 1) => `https://www.2embed.cc/embedtv/${item.id}&s=${season}&e=${episode}`),
+];
+
+export const ANIME_SERVER_QUEUE: EmbedServer[] = [
+  createServer('vidlink-anime', 'VidLink Anime', 9, 'Mapeamento TMDB para animes', (item, season = 1, episode = 1) => `https://vidlink.pro/embed/tv/${item.id}/${season}/${episode}`),
+  createServer('multiembed-anime', 'MultiEmbed Anime', 10, 'Fallback de animes', (item, season = 1, episode = 1) => getMultiEmbedFallbackUrl(item, season, episode)),
+];
+
+export const getPlayerQueue = (item: MediaItem): EmbedServer[] => (
+  item.media_type === 'movie' ? MOVIE_SERVER_QUEUE : item.media_type === 'anime' ? ANIME_SERVER_QUEUE : TV_SERVER_QUEUE
+);
 
 export const PLAYER_SERVER_QUEUE: EmbedServer[] = [
   ...MOVIE_SERVER_QUEUE,
-  ...TV_ANIME_SERVER_QUEUE,
+  ...TV_SERVER_QUEUE,
+  ...ANIME_SERVER_QUEUE,
 ];
 
 export const EMBED_SERVERS: EmbedServer[] = [

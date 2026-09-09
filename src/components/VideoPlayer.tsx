@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Tv, Star, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { MediaItem, CineminhaSyncEvent } from '../types';
-import { getPlayerQueue } from '../data/embedServers';
+import { getMultiEmbedFallbackUrl, getPlayerQueue } from '../data/embedServers';
 import { tmdbService } from '../services/tmdbService';
 import { 
   emitCineminhaEvent, 
@@ -24,6 +24,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const [iframeLoading, setIframeLoading] = useState<boolean>(true);
   const [selectedPlayerIndex, setSelectedPlayerIndex] = useState<number>(0);
+  const [playerUrl, setPlayerUrl] = useState<string>('');
 
   // Séries e Animes: temporada 1 e episódio 1 por padrão
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
@@ -45,24 +46,80 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const playerQueue = getPlayerQueue(item);
   const selectedPlayer = playerQueue[selectedPlayerIndex] || playerQueue[0];
-  const embedUrl = selectedPlayer?.getUrl(item, selectedSeason, selectedEpisode) || '';
+  const embedUrl = playerUrl;
 
   useEffect(() => {
     setSelectedPlayerIndex(0);
+    setPlayerUrl('');
     setIframeLoading(true);
     if (iframeRef.current) iframeRef.current.src = 'about:blank';
-  }, [item.id, item.media_type, selectedSeason, selectedEpisode]);
+    let cancelled = false;
+
+    const checkProvider = async (url: string): Promise<boolean> => {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 3000);
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          mode: 'no-cors',
+          signal: controller.signal,
+        });
+        return response.ok || response.type === 'opaque';
+      } catch (error) {
+        console.debug('Provedor indisponível:', url, error);
+        return false;
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    };
+
+    const resolveProvider = async () => {
+      for (let index = 0; index < playerQueue.length; index += 1) {
+        if (cancelled) return;
+        const url = playerQueue[index].getUrl(item, selectedSeason, selectedEpisode);
+        if (iframeRef.current) iframeRef.current.src = 'about:blank';
+        if (await checkProvider(url)) {
+          if (cancelled) return;
+          setSelectedPlayerIndex(index);
+          setPlayerUrl(url);
+          setIframeLoading(true);
+          return;
+        }
+      }
+
+      if (cancelled) return;
+      const fallbackUrl = getMultiEmbedFallbackUrl(item, selectedSeason, selectedEpisode);
+      setSelectedPlayerIndex(playerQueue.length);
+      setPlayerUrl(fallbackUrl);
+      setIframeLoading(true);
+    };
+
+    void resolveProvider();
+    return () => {
+      cancelled = true;
+    };
+  }, [item.id, item.media_type, selectedSeason, selectedEpisode, playerQueue]);
 
   const handleIframeError = () => {
     const nextIndex = selectedPlayerIndex + 1;
     const nextServer = playerQueue[nextIndex];
     if (!nextServer || !iframeRef.current) {
-      setIframeLoading(false);
+      const fallbackUrl = getMultiEmbedFallbackUrl(item, selectedSeason, selectedEpisode);
+      setSelectedPlayerIndex(playerQueue.length);
+      setPlayerUrl(fallbackUrl);
+      setIframeLoading(true);
+      if (iframeRef.current) {
+        iframeRef.current.src = 'about:blank';
+        requestAnimationFrame(() => {
+          if (iframeRef.current) iframeRef.current.src = fallbackUrl;
+        });
+      }
       return;
     }
 
     const nextUrl = nextServer.getUrl(item, selectedSeason, selectedEpisode);
     setSelectedPlayerIndex(nextIndex);
+    setPlayerUrl(nextUrl);
     setIframeLoading(true);
     iframeRef.current.src = 'about:blank';
     requestAnimationFrame(() => {
@@ -71,7 +128,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const handleIframeLoad = () => {
-    setIframeLoading(false);
+    if (playerUrl && iframeRef.current?.src !== 'about:blank') {
+      setIframeLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -250,27 +309,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
 
         <div id="player-controls" className="mt-4 p-3.5 sm:p-4 bg-zinc-900/90 rounded-xl border border-white/5 space-y-3">
-          <div className="flex items-center gap-2" aria-label="Seleção de player">
-            {playerQueue.map((server, index) => (
-              <button
-                key={server.id}
-                type="button"
-                onClick={() => {
-                  if (iframeRef.current) iframeRef.current.src = 'about:blank';
-                  setSelectedPlayerIndex(index);
-                  setIframeLoading(true);
-                }}
-                className={`px-3 py-1.5 rounded-md border text-xs font-semibold transition-colors ${
-                  index === selectedPlayerIndex
-                    ? 'bg-[#e50914] text-white border-red-500'
-                    : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700 hover:text-white'
-                }`}
-              >
-                {server.name}
-              </button>
-            ))}
-          </div>
-
           {/* Seletor de Temporadas e Episódios (Para Séries) */}
           {(item.media_type === 'tv' || item.media_type === 'anime') && (
             <div className="pt-3 border-t border-zinc-800/80 flex flex-wrap items-center gap-3">
@@ -284,7 +322,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   value={selectedSeason}
                   onChange={(e) => {
                     const newSeason = Number(e.target.value);
-                    if (iframeRef.current) iframeRef.current.src = '';
+                    if (iframeRef.current) iframeRef.current.src = 'about:blank';
                     setSelectedSeason(newSeason);
                     setSelectedEpisode(1);
                     setIframeLoading(true);
@@ -308,7 +346,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   value={selectedEpisode}
                   onChange={(e) => {
                     const newEpisode = Number(e.target.value);
-                    if (iframeRef.current) iframeRef.current.src = '';
+                    if (iframeRef.current) iframeRef.current.src = 'about:blank';
                     setSelectedEpisode(newEpisode);
                     setIframeLoading(true);
                   }}
