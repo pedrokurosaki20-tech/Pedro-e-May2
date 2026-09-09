@@ -35,17 +35,15 @@ const getTvEpisodeUrl = (baseUrl: string, item: MediaItem, season = 1, episode =
 };
 
 export const MOVIE_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidsrc-to-movie', 'VidSrc To', 1, 'Especialista em filmes', (item) => getGenericProviderUrl('https://vidsrc.to', item)),
-  createServer('vidsrc-me-movie', 'VidSrc ME', 2, 'Fallback de filmes', (item) => getGenericProviderUrl('https://vidsrc.me', item)),
-  createServer('vidsrc-cc-movie', 'VidSrc CC', 3, 'Fallback de filmes', (item) => getGenericProviderUrl('https://vidsrc.cc', item)),
-  createServer('vidsrc-xyz-movie', 'VidSrc XYZ', 4, 'Fallback de filmes', (item) => getGenericProviderUrl('https://vidsrc.xyz', item)),
+  createServer('vidlink-movie', 'Player 1', 1, 'VidLink Pro', (item) => 'https://vidlink.pro/embed/movie/' + item.id),
+  createServer('vidsrc-me-movie', 'Player 2', 2, 'VidSrc ME', (item) => `https://vidsrc.me/embed/movie?tmdb=${item.id}`),
+  createServer('vidsrc-cc-movie', 'Player 3', 3, 'VidSrc CC', (item) => `https://vidsrc.cc/v2/embed/movie/${item.id}`),
 ];
 
 export const TV_ANIME_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidsrc-to-tv', 'VidSrc To', 1, 'Especialista em séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidsrc.to', item, season, episode)),
-  createServer('vidsrc-me-tv', 'VidSrc ME', 2, 'Fallback de séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidsrc.me', item, season, episode)),
-  createServer('vidsrc-cc-tv', 'VidSrc CC', 3, 'Fallback de séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidsrc.cc', item, season, episode)),
-  createServer('vidsrc-xyz-tv', 'VidSrc XYZ', 4, 'Fallback de séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidsrc.xyz', item, season, episode)),
+  createServer('vidlink-tv', 'Player 1', 1, 'VidLink Pro', (item, season = 1, episode = 1) => `https://vidlink.pro/embed/tv/${item.id}/${season}/${episode}`),
+  createServer('vidsrc-me-tv', 'Player 2', 2, 'VidSrc ME', (item, season = 1, episode = 1) => `https://vidsrc.me/embed/tv?tmdb=${item.id}&season=${season}&episode=${episode}`),
+  createServer('vidsrc-cc-tv', 'Player 3', 3, 'VidSrc CC', (item, season = 1, episode = 1) => `https://vidsrc.cc/v2/embed/tv/${item.id}/${season}/${episode}`),
 ];
 
 export const getPlayerQueue = (item: MediaItem): EmbedServer[] => {

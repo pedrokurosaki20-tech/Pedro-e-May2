@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Tv, Star, CheckCircle2, ShieldAlert } from 'lucide-react';
-import { MediaItem, EmbedServer, CineminhaSyncEvent } from '../types';
+import { MediaItem, CineminhaSyncEvent } from '../types';
 import { getPlayerQueue } from '../data/embedServers';
 import { tmdbService } from '../services/tmdbService';
 import { 
@@ -23,7 +23,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onBack,
 }) => {
   const [iframeLoading, setIframeLoading] = useState<boolean>(true);
-  const [resolvedServer, setResolvedServer] = useState<EmbedServer | null>(null);
+  const [selectedPlayerIndex, setSelectedPlayerIndex] = useState<number>(0);
 
   // Séries e Animes: temporada 1 e episódio 1 por padrão
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
@@ -39,90 +39,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [playerCurrentTime, setPlayerCurrentTime] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const probeCleanupRef = useRef<(() => void) | null>(null);
-  const fallbackIndexRef = useRef<number>(0);
 
   const displayTitle = item.title || item.name || 'Filme';
   const releaseYear = (item.release_date || item.first_air_date || '').substring(0, 4) || '2024';
 
-  const embedUrl = resolvedServer?.getUrl(item, selectedSeason, selectedEpisode) || '';
   const playerQueue = getPlayerQueue(item);
+  const selectedPlayer = playerQueue[selectedPlayerIndex] || playerQueue[0];
+  const embedUrl = selectedPlayer?.getUrl(item, selectedSeason, selectedEpisode) || '';
 
   useEffect(() => {
-    let cancelled = false;
-    let activeProbe: HTMLIFrameElement | null = null;
-    let timeoutId: number | null = null;
-    let settled = false;
-
-    const cleanup = () => {
-      if (timeoutId !== null) window.clearTimeout(timeoutId);
-      if (activeProbe) activeProbe.remove();
-      activeProbe = null;
-    };
-    probeCleanupRef.current?.();
-    probeCleanupRef.current = cleanup;
+    setSelectedPlayerIndex(0);
     setIframeLoading(true);
-    setResolvedServer(null);
-    fallbackIndexRef.current = 0;
-    if (iframeRef.current) {
-      iframeRef.current.src = 'about:blank';
-    }
-
-    const runWaterfall = async () => {
-      for (let index = 0; index < playerQueue.length; index += 1) {
-        if (cancelled || settled) return;
-        const server = playerQueue[index];
-        const url = server.getUrl(item, selectedSeason, selectedEpisode);
-        if (iframeRef.current) {
-          iframeRef.current.src = 'about:blank';
-        }
-        const loaded = await new Promise<boolean>((resolve) => {
-          const frame = document.createElement('iframe');
-          activeProbe = frame;
-          frame.style.display = 'none';
-          frame.onload = () => resolve(true);
-          frame.onerror = () => resolve(false);
-          document.body.appendChild(frame);
-          timeoutId = window.setTimeout(() => resolve(false), 1500);
-          frame.src = url;
-        });
-        cleanup();
-        if (!loaded || cancelled) continue;
-        settled = true;
-        fallbackIndexRef.current = index;
-        setResolvedServer(server);
-        setIframeLoading(false);
-        if (iframeRef.current) {
-          iframeRef.current.src = 'about:blank';
-          requestAnimationFrame(() => {
-            if (!cancelled && iframeRef.current) iframeRef.current.src = url;
-          });
-        }
-        return;
-      }
-      if (!cancelled) setIframeLoading(false);
-    };
-
-    void runWaterfall();
-    return () => {
-      cancelled = true;
-      cleanup();
-    };
-  }, [item.id, item.media_type, selectedSeason, selectedEpisode, playerQueue]);
+    if (iframeRef.current) iframeRef.current.src = 'about:blank';
+  }, [item.id, item.media_type, selectedSeason, selectedEpisode]);
 
   const handleIframeError = () => {
-    const servers = playerQueue;
-    const nextIndex = fallbackIndexRef.current + 1;
-    const nextServer = servers[nextIndex];
+    const nextIndex = selectedPlayerIndex + 1;
+    const nextServer = playerQueue[nextIndex];
     if (!nextServer || !iframeRef.current) {
       setIframeLoading(false);
       return;
     }
 
-    fallbackIndexRef.current = nextIndex;
     const nextUrl = nextServer.getUrl(item, selectedSeason, selectedEpisode);
+    setSelectedPlayerIndex(nextIndex);
     setIframeLoading(true);
-    setResolvedServer(nextServer);
     iframeRef.current.src = 'about:blank';
     requestAnimationFrame(() => {
       if (iframeRef.current) iframeRef.current.src = nextUrl;
@@ -130,7 +71,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const handleIframeLoad = () => {
-    if (resolvedServer) setIframeLoading(false);
+    setIframeLoading(false);
   };
 
   useEffect(() => {
@@ -186,7 +127,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       iframeRef.current.setAttribute('webkitallowfullscreen', 'true');
       iframeRef.current.setAttribute('mozallowfullscreen', 'true');
     }
-  }, [resolvedServer, embedUrl]);
+  }, [selectedPlayer, embedUrl]);
 
   // Sincronização e funções internas em segundo plano
   useEffect(() => {
@@ -301,12 +242,34 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             className="w-full h-full border-0"
             allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            referrerPolicy="origin"
             onError={handleIframeError}
             onLoad={handleIframeLoad}
           />
         </div>
 
         <div id="player-controls" className="mt-4 p-3.5 sm:p-4 bg-zinc-900/90 rounded-xl border border-white/5 space-y-3">
+          <div className="flex items-center gap-2" aria-label="Seleção de player">
+            {playerQueue.map((server, index) => (
+              <button
+                key={server.id}
+                type="button"
+                onClick={() => {
+                  if (iframeRef.current) iframeRef.current.src = 'about:blank';
+                  setSelectedPlayerIndex(index);
+                  setIframeLoading(true);
+                }}
+                className={`px-3 py-1.5 rounded-md border text-xs font-semibold transition-colors ${
+                  index === selectedPlayerIndex
+                    ? 'bg-[#e50914] text-white border-red-500'
+                    : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700 hover:text-white'
+                }`}
+              >
+                {server.name}
+              </button>
+            ))}
+          </div>
+
           {/* Seletor de Temporadas e Episódios (Para Séries) */}
           {(item.media_type === 'tv' || item.media_type === 'anime') && (
             <div className="pt-3 border-t border-zinc-800/80 flex flex-wrap items-center gap-3">
@@ -424,7 +387,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div className="space-y-2.5 text-xs text-zinc-400">
               <p className="flex justify-between">
                 <span>Servidor Atual:</span>
-                <span className="text-white font-medium">{resolvedServer?.name || 'Selecionando player'}</span>
+                <span className="text-white font-medium">{selectedPlayer?.name || 'Selecionando player'}</span>
               </p>
               <p className="flex justify-between">
                 <span>Resolução:</span>
