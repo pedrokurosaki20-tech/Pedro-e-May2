@@ -11,15 +11,6 @@ const getPlayerParams = (season: number, episode: number): { season: number; epi
   episode: Math.max(1, episode || 1),
 });
 
-const getMultiEmbedUrl = (item: MediaItem, season = 1, episode = 1): string => {
-  const cleanId = String(item.id).replace(/^\//, '');
-  if (item.media_type === 'tv' || item.media_type === 'anime') {
-    const params = getPlayerParams(season, episode);
-    return `https://multiembed.eu/?video_id=${cleanId}&tmdb=1&s=${params.season}&e=${params.episode}`;
-  }
-  return `https://multiembed.eu/?video_id=${cleanId}&tmdb=1`;
-};
-
 const createServer = (
   id: string,
   name: string,
@@ -43,25 +34,18 @@ const getTvEpisodeUrl = (baseUrl: string, item: MediaItem, season = 1, episode =
   return `${baseUrl}/tv/${cleanId}/${params.season}/${params.episode}`;
 };
 
-const get2EmbedTvUrl = (item: MediaItem, season = 1, episode = 1): string => {
-  const cleanId = String(item.id).replace(/^\//, '');
-  const params = getPlayerParams(season, episode);
-  return `https://2embed.cc/tv/${cleanId}-${params.season}-${params.episode}`;
-};
-
 export const MOVIE_SERVER_QUEUE: EmbedServer[] = [
-  createServer('2embed-movie', '2Embed Movie', 1, 'Especialista em filmes', (item) => getGenericProviderUrl('https://2embed.cc', item)),
-  createServer('multiembed-movie', 'SuperEmbed / MultiEmbed', 2, 'Fallback de filmes', getMultiEmbedUrl),
-  createServer('vidcore-movie', 'VidCore API', 3, 'Fallback de filmes', (item) => getGenericProviderUrl('https://vidcore.org', item)),
-  createServer('autoembed-movie', 'AutoEmbed CC', 4, 'Fallback de filmes', (item) => getGenericProviderUrl('https://autoembed.cc', item)),
+  createServer('vidsrc-to-movie', 'VidSrc To', 1, 'Especialista em filmes', (item) => getGenericProviderUrl('https://vidsrc.to', item)),
+  createServer('vidsrc-me-movie', 'VidSrc ME', 2, 'Fallback de filmes', (item) => getGenericProviderUrl('https://vidsrc.me', item)),
+  createServer('vidsrc-cc-movie', 'VidSrc CC', 3, 'Fallback de filmes', (item) => getGenericProviderUrl('https://vidsrc.cc', item)),
+  createServer('vidsrc-xyz-movie', 'VidSrc XYZ', 4, 'Fallback de filmes', (item) => getGenericProviderUrl('https://vidsrc.xyz', item)),
 ];
 
 export const TV_ANIME_SERVER_QUEUE: EmbedServer[] = [
-  createServer('multiembed-tv', 'SuperEmbed / MultiEmbed', 1, 'Especialista em séries e animes', getMultiEmbedUrl),
-  createServer('2embed-tv', '2Embed TV', 2, 'Fallback de séries e animes', get2EmbedTvUrl),
-  createServer('vidcore-tv', 'VidCore API', 3, 'Fallback de séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidcore.org', item, season, episode)),
-  createServer('autoembed-tv', 'AutoEmbed CC', 4, 'Fallback de séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://autoembed.cc', item, season, episode)),
-  createServer('vidlink-tv', 'VidLink Pro', 5, 'Fallback final de séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidlink.pro', item, season, episode)),
+  createServer('vidsrc-to-tv', 'VidSrc To', 1, 'Especialista em séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidsrc.to', item, season, episode)),
+  createServer('vidsrc-me-tv', 'VidSrc ME', 2, 'Fallback de séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidsrc.me', item, season, episode)),
+  createServer('vidsrc-cc-tv', 'VidSrc CC', 3, 'Fallback de séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidsrc.cc', item, season, episode)),
+  createServer('vidsrc-xyz-tv', 'VidSrc XYZ', 4, 'Fallback de séries e animes', (item, season = 1, episode = 1) => getTvEpisodeUrl('https://vidsrc.xyz', item, season, episode)),
 ];
 
 export const getPlayerQueue = (item: MediaItem): EmbedServer[] => {
