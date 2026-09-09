@@ -73,6 +73,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         if (cancelled || settled) return;
         const server = playerQueue[index];
         const url = server.getUrl(item, selectedSeason, selectedEpisode);
+        if (iframeRef.current) {
+          iframeRef.current.src = 'about:blank';
+        }
         const loaded = await new Promise<boolean>((resolve) => {
           const frame = document.createElement('iframe');
           activeProbe = frame;
