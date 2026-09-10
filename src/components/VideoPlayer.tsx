@@ -332,6 +332,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         >
           🔴 Não carregou? Trocar de Canal
         </button>
+        <span className="ml-3 text-xs text-zinc-500">
+          Canal Atual: {Math.min(selectedPlayerIndex + 1, playerQueue.length)}
+        </span>
 
         <div id="player-controls" className="mt-4 p-3.5 sm:p-4 bg-zinc-900/90 rounded-xl border border-white/5 space-y-3">
           {/* Seletor de Temporadas e Episódios (Para Séries) */}

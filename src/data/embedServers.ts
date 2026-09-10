@@ -50,17 +50,17 @@ export const MOVIE_SERVER_QUEUE: EmbedServer[] = [
 ];
 
 export const TV_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidsrc-to-tv', 'VidSrc To', 1, 'Player principal', (item, season = 1, episode = 1) => `https://vidsrc.to/tv/${item.id}/${season}/${episode}`),
-  createServer('vidlink-tv', 'VidLink Oficial', 2, 'Fallback de séries', (item, season = 1, episode = 1) => `https://vidlink.pro/tv/${item.id}/${season}/${episode}`),
-  createServer('mgmoves-tv', 'MG Moves', 3, 'Fallback dublado', (item, season = 1, episode = 1) => `https://mgmoves.net/tv/${item.id}/${season}/${episode}`),
-  createServer('multiembed-tv', 'MultiEmbed', 4, 'Fallback de séries', (item, season = 1, episode = 1) => `https://multiembed.mov/${item.id}&s=${season}&e=${episode}`),
+  createServer('vidlink-tv', 'VidLink Principal', 1, 'Player principal', (item, season = 1, episode = 1) => `https://vidlink.pro/tv/${item.id}/${season}/${episode}`),
+  createServer('vidsrc-to-tv', 'Vidsrc To', 2, 'Fallback de séries', (item, season = 1, episode = 1) => `https://vidsrc.to/tv/${item.id}/${season}/${episode}`),
+  createServer('multiembed-tv', 'SuperEmbed TV', 3, 'Fallback de séries', (item, season = 1, episode = 1) => `https://multiembed.mov/${item.id}&s=${season}&e=${episode}`),
+  createServer('2embed-tv', '2Embed Nova', 4, 'Fallback de séries', (item, season = 1, episode = 1) => `https://2embed.cc/${item.id}&s=${season}&e=${episode}`),
 ];
 
 export const ANIME_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidsrc-cc-anime', 'VidSrc CC', 1, 'Player principal de animes', (item, season = 1, episode = 1) => `https://vidsrc.cc/tv/${item.id}/${season}/${episode}`),
-  createServer('multiembed-anime', 'SuperEmbed', 2, 'Fallback de animes', (item, season = 1, episode = 1) => `https://multiembed.mov/${item.id}&s=${season}&e=${episode}`),
-  createServer('vidsrc-pro-anime', 'VidSrc Pro', 3, 'Fallback de animes', (item, season = 1, episode = 1) => `https://vidsrc.pro/tv/${item.id}/${season}/${episode}`),
-  createServer('2embed-anime', '2Embed API', 4, 'Fallback de animes', (item, season = 1, episode = 1) => `https://2embed.cc/${item.id}&s=${season}&e=${episode}`),
+  createServer('vidsrc-pro-anime', 'Vidsrc Pro', 1, 'Player principal de animes', (item, season = 1, episode = 1) => `https://vidsrc.pro/tv/${item.id}/${season}/${episode}`),
+  createServer('multiembed-anime', 'SuperEmbed Nova', 2, 'Fallback de animes', (item, season = 1, episode = 1) => `https://multiembed.mov/${item.id}&s=${season}&e=${episode}`),
+  createServer('vidsrc-cc-anime', 'Vidsrc CC', 3, 'Fallback de animes', (item, season = 1, episode = 1) => `https://vidsrc.cc/tv/${item.id}/${season}/${episode}`),
+  createServer('autoembed-anime', 'AutoEmbed VIP', 4, 'Fallback de animes', (item, season = 1, episode = 1) => `https://autoembed.co/${item.id}?s=${season}&e=${episode}`),
 ];
 
 export const getPlayerQueue = (item: MediaItem): EmbedServer[] => (
