@@ -47,6 +47,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const playerQueue = getPlayerQueue(item);
   const selectedPlayer = playerQueue[selectedPlayerIndex] || playerQueue[0];
   const embedUrl = playerUrl;
+  const iframeKey = `${item.id}-${selectedSeason}-${selectedEpisode}-${selectedPlayerIndex}`;
 
   useEffect(() => {
     setSelectedPlayerIndex(0);
@@ -134,24 +135,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const handleChangeChannel = () => {
-    const nextIndex = selectedPlayerIndex + 1;
-    const nextServer = playerQueue[nextIndex];
-    if (!nextServer) {
-      console.info('[CineStream] Nenhum canal adicional disponível para esta mídia.');
-      return;
-    }
-
-    const nextUrl = nextServer.getUrl(item, selectedSeason, selectedEpisode);
-    console.info(`[CineStream] Usuário pulou para o Canal ${nextIndex + 1}`);
-    setSelectedPlayerIndex(nextIndex);
-    setPlayerUrl(nextUrl);
-    setIframeLoading(true);
-    if (iframeRef.current) {
-      iframeRef.current.src = 'about:blank';
+    setSelectedPlayerIndex((previousIndex) => {
+      const nextIndex = (previousIndex + 1) % playerQueue.length;
+      const nextServer = playerQueue[nextIndex];
+      const nextUrl = nextServer.getUrl(item, selectedSeason, selectedEpisode);
+      console.info(`[CineStream] Usuário pulou para o Canal ${nextIndex + 1}`);
+      setPlayerUrl(nextUrl);
+      setIframeLoading(true);
+      if (iframeRef.current) iframeRef.current.src = 'about:blank';
       requestAnimationFrame(() => {
         if (iframeRef.current) iframeRef.current.src = nextUrl;
       });
-    }
+      return nextIndex;
+    });
   };
 
   useEffect(() => {
@@ -316,7 +312,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <iframe
             ref={iframeRef}
             id="streaming-iframe"
-            key={embedUrl || 'player-loading'}
+            key={iframeKey}
             src={embedUrl || 'about:blank'}
             title={`Player ${displayTitle}`}
             className="w-full h-full border-0"

@@ -37,29 +37,30 @@ const getTvEpisodeUrl = (baseUrl: string, item: MediaItem, season = 1, episode =
 export const getMultiEmbedFallbackUrl = (item: MediaItem, season = 1, episode = 1): string => {
   const cleanId = String(item.id).replace(/^\//, '');
   if (item.media_type === 'movie') {
-    return `https://multiembed.cm/?video_id=${cleanId}`;
+    return `https://multiembed.mov/${cleanId}`;
   }
   const params = getPlayerParams(season, episode);
-  return `https://multiembed.cm/?video_id=${cleanId}&s=${params.season}&e=${params.episode}`;
+  return `https://multiembed.mov/${cleanId}&s=${params.season}&e=${params.episode}`;
 };
 
 export const MOVIE_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidsrc-movie', 'VidSrc Novo', 1, 'Catálogo de filmes', (item) => `https://vidsrc.to/embed/movie/${item.id}`),
-  createServer('vidlink-movie', 'VidLink', 2, 'Player alternativo', (item) => `https://vidlink.pro/movie/${item.id}`),
-  createServer('multiembed-movie', 'MultiEmbed', 3, 'Fallback de filmes', (item) => getMultiEmbedFallbackUrl(item)),
-  createServer('smashystream-movie', 'SmashyStream', 4, 'Fallback de filmes', (item) => `https://embed.smashystream.com/playere.php?tmdb=${item.id}`),
+  createServer('vidlink-movie', 'VidLink Movie', 1, 'Player principal', (item) => `https://vidlink.pro/movie/${item.id}`),
+  createServer('vidsrc-to-movie', 'VidSrc To Movie', 2, 'Fallback de filmes', (item) => `https://vidsrc.to/movie/${item.id}`),
+  createServer('multiembed-movie', 'MultiEmbed Movie', 3, 'Fallback de filmes', (item) => `https://multiembed.mov/${item.id}`),
 ];
 
 export const TV_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidsrc-tv', 'VidSrc TV', 5, 'Catálogo de séries', (item, season = 1, episode = 1) => `https://vidsrc.to/embed/tv/${item.id}/${season}/${episode}`),
-  createServer('vidlink-tv', 'VidLink TV', 6, 'Player alternativo de séries', (item, season = 1, episode = 1) => `https://vidlink.pro/tv/${item.id}/${season}/${episode}`),
-  createServer('mgmoves-tv', 'MG Moves', 7, 'Fallback dublado', (item, season = 1, episode = 1) => `https://mgmoves.net/embed/tv/${item.id}/${season}/${episode}`),
-  createServer('2embed-tv', '2Embed', 8, 'Fallback de séries', (item, season = 1, episode = 1) => `https://www.2embed.cc/embedtv/${item.id}&s=${season}&e=${episode}`),
+  createServer('vidsrc-to-tv', 'VidSrc To', 1, 'Player principal', (item, season = 1, episode = 1) => `https://vidsrc.to/tv/${item.id}/${season}/${episode}`),
+  createServer('vidlink-tv', 'VidLink Oficial', 2, 'Fallback de séries', (item, season = 1, episode = 1) => `https://vidlink.pro/tv/${item.id}/${season}/${episode}`),
+  createServer('mgmoves-tv', 'MG Moves', 3, 'Fallback dublado', (item, season = 1, episode = 1) => `https://mgmoves.net/tv/${item.id}/${season}/${episode}`),
+  createServer('multiembed-tv', 'MultiEmbed', 4, 'Fallback de séries', (item, season = 1, episode = 1) => `https://multiembed.mov/${item.id}&s=${season}&e=${episode}`),
 ];
 
 export const ANIME_SERVER_QUEUE: EmbedServer[] = [
-  createServer('vidlink-anime', 'VidLink Anime', 9, 'Mapeamento TMDB para animes', (item, season = 1, episode = 1) => `https://vidlink.pro/tv/${item.id}/${season}/${episode}`),
-  createServer('multiembed-anime', 'MultiEmbed Anime', 10, 'Fallback de animes', (item, season = 1, episode = 1) => getMultiEmbedFallbackUrl(item, season, episode)),
+  createServer('vidsrc-cc-anime', 'VidSrc CC', 1, 'Player principal de animes', (item, season = 1, episode = 1) => `https://vidsrc.cc/tv/${item.id}/${season}/${episode}`),
+  createServer('multiembed-anime', 'SuperEmbed', 2, 'Fallback de animes', (item, season = 1, episode = 1) => `https://multiembed.mov/${item.id}&s=${season}&e=${episode}`),
+  createServer('vidsrc-pro-anime', 'VidSrc Pro', 3, 'Fallback de animes', (item, season = 1, episode = 1) => `https://vidsrc.pro/tv/${item.id}/${season}/${episode}`),
+  createServer('2embed-anime', '2Embed API', 4, 'Fallback de animes', (item, season = 1, episode = 1) => `https://2embed.cc/${item.id}&s=${season}&e=${episode}`),
 ];
 
 export const getPlayerQueue = (item: MediaItem): EmbedServer[] => (
